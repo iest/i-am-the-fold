@@ -3,14 +3,18 @@
 let express = require('express');
 let app = express();
 let bodyParser = require('body-parser');
+let _ = require('underscore');
 
 app.use(bodyParser.json());
 app.set('view engine', 'jade');
 
-let folds = []; // Should save this out to a text file or whatever
+let folds = [801]; // Should save this out to a text file or whatever
 
 app.get('/', function(req, res) {
-  res.render('index', {folds: folds});
+  res.render('index', {
+    folds: _.unique(folds),
+    tallest: _.max(folds)
+  });
 });
 
 app.post('/fold', function(req, res) {

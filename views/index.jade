@@ -1,11 +1,14 @@
 html
   head
     title I am the fold
+    meta(name="viewport" content="width=device-width initial-scale=1")
+
+    link(href='http://fonts.googleapis.com/css?family=Fira+Mono:400,700' rel='stylesheet' type='text/css')
 
     script.
       var xhr = new XMLHttpRequest();
       var obj = {fold: window.innerHeight};
-      
+
       xhr.open('POST', '/fold', true);
       xhr.setRequestHeader('Content-type', 'application/json');
       xhr.send(JSON.stringify(obj));
@@ -18,19 +21,57 @@ html
       }
       body {
         padding-bottom: 5em;
-        font-family: monospace;
+        font-family: "Fira Mono", "Menlo", monospace;
+        background: #FFF;
+        color: #2A2A2A;
+        text-align: center;
+      }
+      a {
+        color: #333;
+        font-weight: bold;
+      }
+      h1 {
+      margin: 0 0 0.25em;
+      }
+      ul {
+        background: #2A2A2A;
+        color: #FFF;
       }
       li {
         position: absolute;
         list-style: none;
-        background: rgba(0,0,0,0.5);
-        height: 1px;
+        border-top: 1px solid #FFF;
+        background: #2A2A2A;
         width: 100%;
+        z-index: 1;
+      }
+      header {
+        padding: 1em;
+        position: relative;
+        z-index: 2;
+        background: #FFF;
+      }
+      .tagline {
+        max-width: 55em;
+        margin: 0 auto;
+        text-align: left;
+      }
+      footer span {
+        color: red;
       }
   body
-    h1 I am the fold
-    p 
+    header
+      h1 I am The Fold
+      p.tagline An experiment to show how designing for The Fold can be trecharous. Each line below is a past-visitor's viewport height. Take care when making assumptions about people's screen sizes on the web.
 
-    ul
+    ul(style="height: #{tallest}px")
       each fold in folds
-        li(style='top:#{fold}')
+        li(style='top: #{fold}px;')!= fold
+
+    footer
+      :markdown
+        Born from an [article](http://www.jordanm.co.uk/post/110325451951/i-am-the-fold) and a [tweet](https://twitter.com/jordanmoore/status/563980959901843456) by [Jordan Moore](http://jordanm.co.uk).
+
+        Made with <span>❤</span> by [@_iest](http://twitter.com/_iest)
+
+        [View source](https://github.com/iest/i-am-the-fold) on Github
