@@ -1,5 +1,36 @@
 html
   head
-    title Hello!
+    title I am the fold
+
+    script.
+      var xhr = new XMLHttpRequest();
+      var obj = {fold: window.innerHeight};
+      
+      xhr.open('POST', '/fold', true);
+      xhr.setRequestHeader('Content-type', 'application/json');
+      xhr.send(JSON.stringify(obj));
+
+    style.
+      body,
+      ul {
+        padding: 0;
+        margin: 0;
+      }
+      body {
+        padding-bottom: 5em;
+        font-family: monospace;
+      }
+      li {
+        position: absolute;
+        list-style: none;
+        background: rgba(0,0,0,0.5);
+        height: 1px;
+        width: 100%;
+      }
   body
-    h1 World!
+    h1 I am the fold
+    p 
+
+    ul
+      each fold in folds
+        li(style='top:#{fold}')
