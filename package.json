@@ -2,6 +2,7 @@
   "name": "i-am-the-fold",
   "version": "0.0.1",
   "description": "",
+  "repository": "https://github.com/iest/i-am-the-fold",
   "main": "index.js",
   "scripts": {
     "start": "iojs index.js",
@@ -13,5 +14,8 @@
     "body-parser": "^1.11.0",
     "express": "^4.11.2",
     "jade": "^1.9.2"
+  },
+  "engines": {
+    "iojs": "1.0.x"
   }
 }
