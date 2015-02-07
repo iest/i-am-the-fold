@@ -1,0 +1,15 @@
+{
+  "name": "i-am-the-fold",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "iojs index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Iestyn Williams",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.11.2"
+  }
+}
