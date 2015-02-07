@@ -18,7 +18,7 @@ app.post('/fold', function(req, res) {
   res.sendStatus(200);
 });
 
-let server = app.listen(8080, function() {
+let server = app.listen(process.env.PORT || 8080, function() {
   let a = server.address();
   console.log(`Listening on http://${a.address}:${a.port}`);
 });
