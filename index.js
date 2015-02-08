@@ -12,7 +12,7 @@ app.set('view engine', 'jade');
 
 let blacklist = [];
 
-let folds = _(fs
+let folds = fs
   .readFileSync('folds.txt', 'utf8')
   .split('\n')
   .map(function(num) {
@@ -20,7 +20,7 @@ let folds = _(fs
   })
   .filter(function(num) {
     return !Number.isNaN(num);
-  })).sample(200);
+  });
 
 app.get('/', function(req, res) {
   res.render('index', {
@@ -49,7 +49,7 @@ app.post('/fold', function(req, res) {
   }
 });
 
-let server = app.listen(process.env.PORT || 8080, function() {
+let server = app.listen(3333, function() {
   let a = server.address();
   console.log(`Listening on http://${a.address}:${a.port}`);
 });
