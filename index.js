@@ -4,11 +4,20 @@ let express = require('express');
 let app = express();
 let bodyParser = require('body-parser');
 let _ = require('underscore');
+let fs = require('fs');
 
 app.use(bodyParser.json());
 app.set('view engine', 'jade');
 
-let folds = [801]; // Should save this out to a text file or whatever
+let folds = _(fs
+  .readFileSync('folds.txt', 'utf8')
+  .split('\n')
+  .map(function(num) {
+    return parseInt(num);
+  })
+  .filter(function(num) {
+    return !Number.isNaN(num);
+  })).sample(200);
 
 app.get('/', function(req, res) {
   res.render('index', {
@@ -18,8 +27,15 @@ app.get('/', function(req, res) {
 });
 
 app.post('/fold', function(req, res) {
-  folds.push(req.body.fold);
-  res.sendStatus(200);
+  let fold = req.body.fold;
+
+  if (!fold || !Number(fold) || parseInt(fold) > 1e6) {
+    res.sendStatus(400);
+  } else {
+    folds.push(fold);
+    fs.appendFile('folds.txt', fold + '\n');
+    res.sendStatus(200);
+  }
 });
 
 let server = app.listen(process.env.PORT || 8080, function() {

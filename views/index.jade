@@ -2,6 +2,7 @@ html
   head
     title I am the fold
     meta(name="viewport" content="width=device-width initial-scale=1")
+    meta(name="description" content="An experiment to show how designing for The Fold can be treacherous")
 
     link(href='http://fonts.googleapis.com/css?family=Fira+Mono:400,700' rel='stylesheet' type='text/css')
 
@@ -21,7 +22,7 @@ html
       }
       body {
         padding-bottom: 5em;
-        font-family: "Fira Mono", "Menlo", monospace;
+        font: 1em/1.4 "Fira Mono", "Menlo", monospace;
         background: #FFF;
         color: #2A2A2A;
         text-align: center;
@@ -41,9 +42,11 @@ html
         position: absolute;
         list-style: none;
         border-top: 1px dashed #FFF;
-        background: #2A2A2A;
         width: 100%;
         z-index: 1;
+      }
+      li span {
+        background: #2A2A2A;
       }
       header {
         padding: 1em;
@@ -51,27 +54,23 @@ html
         z-index: 2;
         background: #FFF;
       }
-      .tagline {
-        max-width: 55em;
-        margin: 0 auto;
+      header p {
         text-align: left;
+        max-width: 55em;
+        margin: 0 auto 0.5em;
       }
-      footer span {
+      header p span {
         color: red;
       }
   body
     header
-      h1 I am The Fold
-      p.tagline An experiment to show how designing for The Fold can be treacherous. Each line below is a past-visitor's viewport height. Take care when making assumptions about people's screen sizes on the web.
+      :markdown
+        # I am the fold
+
+        An experiment to show how designing for The Fold can be treacherous. Each line below is a past-visitor's viewport height. Take care when making assumptions about people's screen sizes on the web.
+
+        Born from an [article](http://www.jordanm.co.uk/post/110325451951/i-am-the-fold) and a [tweet](https://twitter.com/jordanmoore/status/563980959901843456) by [Jordan Moore](http://jordanm.co.uk) | Made with <span>❤</span> by [@_iest](http://twitter.com/_iest) | [View source](https://github.com/iest/i-am-the-fold) on Github
 
     ul(style="height: #{tallest}px")
       each fold in folds
-        li(style='top: #{fold}px;')!= fold
-
-    footer
-      :markdown
-        Born from an [article](http://www.jordanm.co.uk/post/110325451951/i-am-the-fold) and a [tweet](https://twitter.com/jordanmoore/status/563980959901843456) by [Jordan Moore](http://jordanm.co.uk).
-
-        Made with <span>❤</span> by [@_iest](http://twitter.com/_iest)
-
-        [View source](https://github.com/iest/i-am-the-fold) on Github
+        li(style='top: #{fold}px;'): span=fold
