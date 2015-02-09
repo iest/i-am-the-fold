@@ -61,7 +61,8 @@ app.post('/fold', function(req, res) {
 
   if (!fold ||
     !Number(fold) ||
-    parseInt(fold) > 5120) {
+    parseInt(fold) > 5120 ||
+    parseInt(fold < 1)) {
     res.sendStatus(400);
     console.log(`Invalid fold: ${fold}`);
   } else {
