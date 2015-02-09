@@ -8,6 +8,7 @@ let cookieParser = require('cookie-parser');
 let bodyParser = require('body-parser');
 let _ = require('underscore');
 let fs = require('fs');
+let async = require('async');
 
 app.enable('trust proxy');
 app.use(bodyParser.json());
@@ -29,6 +30,24 @@ let folds = fs
   .filter(function(num) {
     return !Number.isNaN(num);
   });
+
+let foldCargo = async.cargo(function(tasks, callback) {
+  let folds = "";
+  for (var i = 0; i < tasks.length; i++) {
+    folds += tasks[i].fold + '\n';
+  }
+  fs.appendFile('folds.txt', folds);
+  callback();
+}, 5);
+
+let blacklistCargo = async.cargo(function(tasks, callback) {
+  let blacklist = "";
+  for (var i = 0; i < tasks.length; i++) {
+    blacklist += tasks[i].ip + '\n';
+  }
+  fs.appendFile('blacklist.txt', blacklist);
+  callback();
+}, 5);
 
 let blacklist = fs
   .readFileSync('blacklist.txt', 'utf8')
@@ -59,16 +78,27 @@ app.post('/fold', function(req, res) {
     return res.sendStatus(401);
   }
 
-  if (!fold || !Number(fold) || parseInt(fold) > 5120 || parseInt(fold) < 1) {
+  if (
+      !fold ||
+      !Number(fold) ||
+      parseInt(fold) > 5120 ||
+      parseInt(fold) < 1
+    ) {
     res.sendStatus(400);
     console.log(`Invalid fold: ${fold}`);
   } else {
     blacklist.push(ip);
     folds.push(fold);
-    fs.appendFile('folds.txt', fold + '\n');
-    fs.appendFile('blacklist.txt', ip + '\n');
+
+    foldCargo.push({fold: fold}, function() {
+      console.log("Wrote folds to disk");
+    });
+    blacklistCargo.push({ip: ip}, function() {
+      console.log("Wrote blacklist to disk");
+    });
+
     res.sendStatus(200);
-    console.log(`Added new fold: ${fold} from ip ${ip}`);
+    console.log(`Got new fold: ${fold} from ip ${ip}`);
   }
 });
 
