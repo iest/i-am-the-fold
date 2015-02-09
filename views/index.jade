@@ -8,7 +8,10 @@ html
 
     script.
       var xhr = new XMLHttpRequest();
-      var obj = {fold: window.innerHeight};
+      var obj = {
+        fold: window.innerHeight,
+        _csrf: "#{csrfToken}"
+      };
 
       xhr.open('POST', '/fold', true);
       xhr.setRequestHeader('Content-type', 'application/json');

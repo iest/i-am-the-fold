@@ -2,13 +2,23 @@
 
 let express = require('express');
 let app = express();
+let csrf = require('csurf');
+let session = require('express-session');
+let cookieParser = require('cookie-parser');
 let bodyParser = require('body-parser');
 let _ = require('underscore');
 let fs = require('fs');
 
 app.enable('trust proxy');
 app.use(bodyParser.json());
+app.use(cookieParser());
+app.use(session({
+  secret: process.env.SECRET,
+  proxy: true,
+}));
+
 app.set('view engine', 'jade');
+app.use(csrf());
 
 let blacklist = [];
 
@@ -22,10 +32,19 @@ let folds = fs
     return !Number.isNaN(num);
   });
 
+app.use(function(err, req, res, next) {
+  if (err.code !== 'EBADCSRFTOKEN') {
+    return next(err);
+  }
+  res.status(403);
+  res.send('session has expired or form tampered with');
+});
+
 app.get('/', function(req, res) {
   res.render('index', {
     folds: _.unique(folds),
-    tallest: _.max(folds)
+    tallest: _.max(folds),
+    csrfToken: req.csrfToken()
   });
 });
 
