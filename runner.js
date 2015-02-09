@@ -6,7 +6,7 @@ var child = new(forever.Monitor)('index.js', {
   command: "iojs",
   args: ['index.js'],
   max: 5,
-  silent: false,
+  silent: true,
   'logFile': 'logs.txt',
   'outFile': 'out.txt',
   'errFile': 'err.txt',
