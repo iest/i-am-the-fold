@@ -20,8 +20,6 @@ app.use(session({
 app.set('view engine', 'jade');
 app.use(csrf());
 
-let blacklist = [];
-
 let folds = fs
   .readFileSync('folds.txt', 'utf8')
   .split('\n')
@@ -31,6 +29,10 @@ let folds = fs
   .filter(function(num) {
     return !Number.isNaN(num);
   });
+
+let blacklist = fs
+  .readFileSync('blacklist.txt', 'utf8')
+  .split('\n');
 
 app.use(function(err, req, res, next) {
   if (err.code !== 'EBADCSRFTOKEN') {
@@ -66,6 +68,7 @@ app.post('/fold', function(req, res) {
     blacklist.push(ip);
     folds.push(fold);
     fs.appendFile('folds.txt', fold + '\n');
+    fs.appendFile('blacklist.txt', ip + '\n');
     res.sendStatus(200);
     console.log(`Added new fold: ${fold} from ip ${ip}`);
   }
