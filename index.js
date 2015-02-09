@@ -34,6 +34,7 @@ app.post('/fold', function(req, res) {
   let ip = req.ips[0];
 
   if (blacklist.indexOf(ip)) {
+    console.log(`Fold already saved for IP: ${ip}`);
     return res.sendStatus(401);
   }
 
@@ -41,15 +42,17 @@ app.post('/fold', function(req, res) {
     !Number(fold) ||
     parseInt(fold) > 1e6) {
     res.sendStatus(400);
+    console.log(`Invalid fold: ${fold}`);
   } else {
     blacklist.push(ip);
     folds.push(fold);
     fs.appendFile('folds.txt', fold + '\n');
     res.sendStatus(200);
+    console.log(`Added new fold: ${fold} from ip ${ip}`);
   }
 });
 
 let server = app.listen(3333, function() {
   let a = server.address();
-  console.log(`Listening on http://${a.address}:${a.port}`);
+  console.log(`Listening on ${a.port}`);
 });
