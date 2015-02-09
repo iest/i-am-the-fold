@@ -5,7 +5,7 @@ var forever = require('forever-monitor');
 var child = new(forever.Monitor)('index.js', {
   command: "iojs",
   args: ['index.js'],
-  max: 5,
+  max: 5000,
   silent: true,
   'logFile': 'logs.txt',
   'outFile': 'out.txt',
@@ -13,7 +13,7 @@ var child = new(forever.Monitor)('index.js', {
 });
 
 child.on('exit', function() {
-  console.log('iamthefold has exited after 5 restarts');
+  console.log('iamthefold has exited after 5000 restarts');
 });
 
 child.start();
