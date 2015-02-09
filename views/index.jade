@@ -70,6 +70,15 @@ html
       header p span {
         color: red;
       }
+      footer {
+        font-size: 80%;
+        padding: 1em;
+        max-width: 55em;
+        margin: 0 auto;
+      }
+      footer p {
+        text-align: left;
+      }
   body
     header
       :markdown
@@ -83,3 +92,13 @@ html
       each fold, i in folds
         li(style='top: #{fold}px;')
           span=fold
+
+    footer
+      :markdown
+        Lines shown are unique viewport heights. That means that no matter how many visitors have the same viewport height, the line will only be drawn once.
+
+        This is meant to show the diversity of viewports, not the popularity of them.
+
+        On page load, I grab the viewport and send it back to the server. Due to abuse however, I limit the number of requests a single IP can make. I know this limits the number of "folds" that will be drawn (e.g. any agency/company/whatever will only have a few IP addresses, so multiple visitors from within the same network will only register one line), but I couldn't think of a simpler way to limit abuse of the site.
+
+        Think this is cool/awesome/meh? Let me know on [twitter](https://twitter.com/_iest). Full write up coming soon on my personal site, [iest.co](http://iest.co).
