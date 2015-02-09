@@ -33,7 +33,7 @@ app.post('/fold', function(req, res) {
   let fold = req.body.fold;
   let ip = req.ips[0];
 
-  if (blacklist.indexOf(ip)) {
+  if (blacklist.indexOf(ip) !== -1) {
     console.log(`Fold already saved for IP: ${ip}`);
     return res.sendStatus(401);
   }
