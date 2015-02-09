@@ -46,7 +46,7 @@ html
         border-top: 1px solid #FFF;
         width: 100%;
         z-index: 1;
-        opacity: 0.25;
+        opacity: 0.1;
       }
       li:hover {
         z-index: 100000;
@@ -82,19 +82,21 @@ html
       footer p {
         text-align: left;
       }
+      noscript {
+        color: red;
+      }
   body
     header
       :markdown
         # I am the fold
 
-        An experiment to show how designing for The Fold can be treacherous. Each line below is a past-visitor's viewport height. Take care when making assumptions about people's screen sizes on the web.
+        An experiment to show how designing for The Fold can be treacherous. Each line below is from a random sampling of past-visitors' viewport heights. Take care when making assumptions about people's screen sizes on the web.
 
         Made with <span>❤</span> by [@_iest](http://twitter.com/_iest) | Born from an [article](http://www.jordanm.co.uk/post/110325451951/i-am-the-fold) and a [tweet](https://twitter.com/jordanmoore/status/563980959901843456) by [Jordan Moore](http://jordanm.co.uk) | [Source on Github](https://github.com/iest/i-am-the-fold)
 
+    noscript
+      p You need javascript to view this because I don't want to melt my server. Sorry!
     ul(style="height: #{tallest}px")
-      each fold, i in folds
-        li(style='top: #{fold}px;')
-          span=fold
 
     footer
       :markdown
@@ -105,3 +107,17 @@ html
         On page load, I grab the viewport and send it back to the server. Due to abuse however, I limit the number of requests a single IP can make. I know this limits the number of "folds" that will be drawn (e.g. any agency/company/whatever will only have a few IP addresses, so multiple visitors from within the same network will only register one line), but I couldn't think of a simpler way to limit abuse of the site.
 
         Think this is cool/awesome/meh? Let me know on [twitter](https://twitter.com/_iest). Full write up coming soon on my personal site, [iest.co](http://iest.co).
+
+        **Update 9th Feb 23:39GMT**: I've changed the site slightly so the lines are now drawn from a randomised subset of the full data, and the lines are now rendered by client-side javascript to stop my server from melting.
+
+    script.
+      var sample = [#{folds}];
+      var ul = document.querySelector('ul');
+      sample.forEach(function(fold){
+        var child = document.createElement('li');
+        var label = document.createElement('span');
+        child.style.top = fold;
+        label.innerText = fold;
+        child.appendChild(label)
+        ul.appendChild(child);
+      })

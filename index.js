@@ -62,9 +62,11 @@ app.use(function(err, req, res, next) {
 });
 
 app.get('/', function(req, res) {
+  let sample = _.sample(folds, 1000);
+
   res.render('index', {
-    folds: _.unique(folds),
-    tallest: _.max(folds),
+    folds: sample,
+    tallest: _.max(sample),
     csrfToken: req.csrfToken()
   });
 });
@@ -78,22 +80,25 @@ app.post('/fold', function(req, res) {
     return res.sendStatus(401);
   }
 
-  if (
-      !fold ||
-      !Number(fold) ||
-      parseInt(fold) > 5120 ||
-      parseInt(fold) < 1
-    ) {
+  if (!fold ||
+    !Number(fold) ||
+    parseInt(fold) > 5120 ||
+    parseInt(fold) < 1
+  ) {
     res.sendStatus(400);
     console.log(`Invalid fold: ${fold}`);
   } else {
     blacklist.push(ip);
     folds.push(fold);
 
-    foldCargo.push({fold: fold}, function() {
+    foldCargo.push({
+      fold: fold
+    }, function() {
       console.log("Wrote folds to disk");
     });
-    blacklistCargo.push({ip: ip}, function() {
+    blacklistCargo.push({
+      ip: ip
+    }, function() {
       console.log("Wrote blacklist to disk");
     });
 
