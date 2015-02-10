@@ -1,25 +1,26 @@
 'use strict';
 
+let crypto = require('crypto');
 let express = require('express');
 let app = express();
-let csrf = require('csurf');
-let session = require('express-session');
-let cookieParser = require('cookie-parser');
 let bodyParser = require('body-parser');
 let _ = require('underscore');
 let fs = require('fs');
 let async = require('async');
+let st = require('st');
+let jwt = require('jsonwebtoken');
+var hashcache = require('./lib/hashcache');
+
+var usedChallenges = new Set();
 
 app.enable('trust proxy');
 app.use(bodyParser.json());
-app.use(cookieParser());
-app.use(session({
-  secret: process.env.SECRET,
-  proxy: true,
-}));
 
 app.set('view engine', 'jade');
-app.use(csrf());
+
+// this determines how much work the clients must do per fold they submit
+// anything above 3 will take a really long time to compute on typical computers
+let strength = 3;
 
 let folds = fs
   .readFileSync('folds.txt', 'utf8')
@@ -53,25 +54,63 @@ let blacklist = fs
   .readFileSync('blacklist.txt', 'utf8')
   .split('\n');
 
-app.use(function(err, req, res, next) {
-  if (err.code !== 'EBADCSRFTOKEN') {
-    return next(err);
+function removeChallenge(challenge, timeout) {
+  setTimeout(function () {
+    usedChallenges.remove(challenge);
+  }, timeout);
+}
+app.use(function (req, res, next) {
+  if (req.body && req.body.token) {
+    // if it's a POST, decode the challenge and verify that it was created by this server
+    return jwt.verify(req.body.token, process.env.SECRET, function (err, token) {
+      if (err && err.name === 'TokenExpiredError') {
+        res.sendStatus(403);
+        console.log("expired session");
+        return;
+      }
+      if (err) return next(err);
+      req.challenge = token.challenge;
+      req.token = req.body.token;
+      if (usedChallenges.has(req.challenge)) {
+        res.sendStatus(403);
+        console.log("challenge reuse rejected");
+        return;
+      }
+      usedChallenges.add(req.challenge);
+      // we only need to store used challenges for 2 minutes because
+      // after that the session expires anyway
+      removeChallenge(req.challenge, 2 * 60 * 1000);
+      next();
+    });
   }
-  res.status(403);
-  res.send('session has expired or form tampered with');
+  // generate a random challenge and sign that challenge to create a token
+  crypto.randomBytes(50, function (err, buffer) {
+    if (err) return next(err);
+    req.challenge = buffer.toString('base64');
+    req.token = jwt.sign({challenge: req.challenge}, process.env.SECRET, {
+      expiresInMinutes: 2
+    });
+    next();
+  });
 });
-
 app.get('/', function(req, res) {
   let sample = _.sample(folds, 1000);
 
   res.render('index', {
     folds: sample,
     tallest: _.max(sample),
-    csrfToken: req.csrfToken()
+    challenge: req.challenge,
+    token: req.token,
+    strength: strength
   });
 });
 
 app.post('/fold', function(req, res) {
+  if (!hashcache.check(req.challenge, strength, req.body.workToken)) {
+    res.sendStatus(403);
+    console.log("Challenge failed");
+    return;
+  }
   let fold = req.body.fold;
   let ip = req.ips[0];
 
@@ -107,6 +146,7 @@ app.post('/fold', function(req, res) {
   }
 });
 
+app.use(st({ path: __dirname + '/static', url: '/static' }));
 let server = app.listen(3333, function() {
   let a = server.address();
   console.log(`Listening on ${a.port}`);
