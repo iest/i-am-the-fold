@@ -4,12 +4,14 @@ var forever = require('forever-monitor');
 
 var child = new(forever.Monitor)('index.js', {
   command: "iojs",
-  args: ['index.js'],
-  max: 5000,
   silent: true,
-  'logFile': 'logs.txt',
-  'outFile': 'out.txt',
-  'errFile': 'err.txt',
+  max: 5,
+  killTree: true,
+  minUptime: 2000,
+  spinSleepTime: 1000,
+  logFile: 'logs ' + new Date() + '.txt',
+  outFile: 'out ' + new Date() + '.txt',
+  errFile: 'err ' + new Date() + '.txt',
 });
 
 child.on('exit', function() {
