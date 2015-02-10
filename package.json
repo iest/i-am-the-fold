@@ -19,7 +19,6 @@
     "csurf": "^1.6.6",
     "express": "^4.11.2",
     "express-session": "^1.10.2",
-    "forever-monitor": "^1.5.2",
     "jade": "^1.9.2",
     "jsonwebtoken": "^3.2.2",
     "marked": "^0.3.3",
