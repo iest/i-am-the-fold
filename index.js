@@ -9,9 +9,9 @@ let fs = require('fs');
 let async = require('async');
 let st = require('st');
 let jwt = require('jsonwebtoken');
-var hashcache = require('./lib/hashcache');
+let hashcache = require('./lib/hashcache');
 
-var usedChallenges = new Set();
+let usedChallenges = new Set();
 
 app.enable('trust proxy');
 app.use(bodyParser.json());
@@ -34,7 +34,7 @@ let folds = fs
 
 let foldCargo = async.cargo(function(tasks, callback) {
   let folds = "";
-  for (var i = 0; i < tasks.length; i++) {
+  for (let i = 0; i < tasks.length; i++) {
     folds += tasks[i].fold + '\n';
   }
   fs.appendFile('folds.txt', folds);
@@ -43,7 +43,7 @@ let foldCargo = async.cargo(function(tasks, callback) {
 
 let blacklistCargo = async.cargo(function(tasks, callback) {
   let blacklist = "";
-  for (var i = 0; i < tasks.length; i++) {
+  for (let i = 0; i < tasks.length; i++) {
     blacklist += tasks[i].ip + '\n';
   }
   fs.appendFile('blacklist.txt', blacklist);
@@ -55,20 +55,23 @@ let blacklist = fs
   .split('\n');
 
 function removeChallenge(challenge, timeout) {
-  setTimeout(function () {
+  setTimeout(function() {
     usedChallenges.remove(challenge);
   }, timeout);
 }
-app.use(function (req, res, next) {
+
+app.use(function(req, res, next) {
   if (req.body && req.body.token) {
     // if it's a POST, decode the challenge and verify that it was created by this server
-    return jwt.verify(req.body.token, process.env.SECRET, function (err, token) {
+    return jwt.verify(req.body.token, process.env.SECRET, function(err, token) {
       if (err && err.name === 'TokenExpiredError') {
         res.sendStatus(403);
         console.log("expired session");
         return;
       }
-      if (err) return next(err);
+      if (err) {
+        return next(err);
+      }
       req.challenge = token.challenge;
       req.token = req.body.token;
       if (usedChallenges.has(req.challenge)) {
@@ -84,15 +87,20 @@ app.use(function (req, res, next) {
     });
   }
   // generate a random challenge and sign that challenge to create a token
-  crypto.randomBytes(50, function (err, buffer) {
-    if (err) return next(err);
+  crypto.randomBytes(50, function(err, buffer) {
+    if (err) {
+      return next(err);
+    }
     req.challenge = buffer.toString('base64');
-    req.token = jwt.sign({challenge: req.challenge}, process.env.SECRET, {
+    req.token = jwt.sign({
+      challenge: req.challenge
+    }, process.env.SECRET, {
       expiresInMinutes: 2
     });
     next();
   });
 });
+
 app.get('/', function(req, res) {
   let sample = _.sample(folds, 1000);
 
@@ -111,6 +119,7 @@ app.post('/fold', function(req, res) {
     console.log("Challenge failed");
     return;
   }
+  
   let fold = req.body.fold;
   let ip = req.ips[0];
 
@@ -146,7 +155,10 @@ app.post('/fold', function(req, res) {
   }
 });
 
-app.use(st({ path: __dirname + '/static', url: '/static' }));
+app.use(st({
+  path: __dirname + '/static',
+  url: '/static'
+}));
 let server = app.listen(3333, function() {
   let a = server.address();
   console.log(`Listening on ${a.port}`);
