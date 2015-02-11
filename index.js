@@ -56,7 +56,7 @@ let blacklist = fs
 
 function removeChallenge(challenge, timeout) {
   setTimeout(function() {
-    usedChallenges.remove(challenge);
+    usedChallenges.delete(challenge);
   }, timeout);
 }
 
