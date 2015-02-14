@@ -40,6 +40,18 @@ li:hover span {
 li span {
   background: #2A2A2A;
 }
+li.current {
+  border-top: 1px solid #FF0000;
+  z-index: 100000;
+  opacity: 1;
+}
+li.current:hover span {
+  background: #FF0000;
+  color: #FFF;
+}
+li.current span {
+  background: #FF0000;
+}
 header {
   padding: 1em;
   position: relative;
@@ -52,7 +64,7 @@ header p {
   margin: 0 auto 0.5em;
 }
 header p span {
-  color: red;
+  color: #FF0000;
 }
 footer {
   font-size: 80%;
