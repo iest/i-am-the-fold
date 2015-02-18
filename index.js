@@ -9,7 +9,7 @@ let fs = require('fs');
 let async = require('async');
 let st = require('st');
 let jwt = require('jsonwebtoken');
-let hashcache = require('./lib/hashcache');
+var work = require('work-token/sync');
 
 let usedChallenges = new Set();
 
@@ -116,7 +116,7 @@ app.get('/', function(req, res) {
 });
 
 app.post('/fold', function(req, res) {
-  if (!hashcache.check(req.challenge, strength, req.body.workToken)) {
+  if (!work.check(req.challenge, strength, req.body.workToken)) {
     res.sendStatus(403);
     console.log("Challenge failed");
     return;
