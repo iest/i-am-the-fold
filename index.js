@@ -13,6 +13,8 @@ let hashcache = require('./lib/hashcache');
 
 let usedChallenges = new Set();
 
+const SECRET = process.env.SECRET || crypto.randomBytes(16).toString('hex');
+
 app.enable('trust proxy');
 app.use(bodyParser.json());
 
@@ -63,7 +65,7 @@ function removeChallenge(challenge, timeout) {
 app.use(function(req, res, next) {
   if (req.body && req.body.token) {
     // if it's a POST, decode the challenge and verify that it was created by this server
-    return jwt.verify(req.body.token, process.env.SECRET, function(err, token) {
+    return jwt.verify(req.body.token, SECRET, function(err, token) {
       if (err && err.name === 'TokenExpiredError') {
         res.sendStatus(403);
         console.log("expired session");
@@ -94,7 +96,7 @@ app.use(function(req, res, next) {
     req.challenge = buffer.toString('base64');
     req.token = jwt.sign({
       challenge: req.challenge
-    }, process.env.SECRET, {
+    }, SECRET, {
       expiresInMinutes: 2
     });
     next();
@@ -119,7 +121,7 @@ app.post('/fold', function(req, res) {
     console.log("Challenge failed");
     return;
   }
-  
+
   let fold = req.body.fold;
   let ip = req.ips[0];
 
