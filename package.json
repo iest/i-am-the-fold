@@ -5,8 +5,8 @@
   "repository": "https://github.com/iest/i-am-the-fold",
   "main": "index.js",
   "scripts": {
-    "prestart": "browserify lib/client.js | uglifyjs -cm > static/client.js",
-    "start": "iojs index.js",
+    "now-build": "browserify lib/client.js | uglifyjs -cm > static/client.js",
+    "start": "node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Iestyn Williams",
@@ -20,13 +20,11 @@
     "express-session": "^1.10.2",
     "jade": "^1.9.2",
     "jsonwebtoken": "^3.2.2",
+    "jstransformer-marked": "^1.0.1",
     "marked": "^0.3.3",
     "st": "^0.5.2",
     "uglify-js": "^2.4.16",
     "underscore": "^1.7.0",
     "work-token": "^1.0.2"
-  },
-  "engines": {
-    "iojs": "1.0.x"
   }
 }

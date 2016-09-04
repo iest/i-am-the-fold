@@ -16,7 +16,7 @@ html
       var folds = [!{folds}];
   body
     header
-      :markdown
+      :marked
         # I am the fold
 
         An experiment to show how designing for The Fold can be treacherous. Each line below is from a random sampling of past-visitors' viewport heights. Take care when making assumptions about people's screen sizes on the web.
@@ -28,7 +28,7 @@ html
     ul(style="height: #{tallest}px")
 
     footer
-      :markdown
+      :marked
         Each line is a viewport from a previous visitor. Each line is slightly transparent, so the brighter portions are where there are multiple similar viewports. The lines are a [1000 long sample](https://github.com/iest/i-am-the-fold/blob/master/index.js#L107) of the full dataset.
 
         If you're interested in the full dataset, [I wrote an article on my personal site](http://iest.co/webdev/2015/02/15/iamthefold-rundown.html) that looks into the numbers a bit more deeply.
