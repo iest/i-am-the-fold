@@ -1,5 +1,4 @@
 node_modules
+.next
 folds.txt
 blacklist.txt
-/static/client.js
-/static/hashcache-worker.js
