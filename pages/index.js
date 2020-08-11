@@ -1,24 +1,29 @@
 import React, { useEffect, useState } from "react";
 import Head from "next/head";
+import work from "work-token/async";
 
 import Header from "@mdx/header.mdx";
 import Footer from "@mdx/footer.mdx";
 
-const Home = ({ folds, max }) => {
+const STRENGTH = 3;
+
+const Home = ({ folds, max, challenge, token }) => {
   const [fold, setFold] = useState();
 
   const saveFold = async (fold) => {
     try {
+      console.time("Generated");
+      const workToken = await work.generate(challenge, STRENGTH);
+      console.timeEnd("Generated");
       await fetch("/api", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ fold }),
+        body: JSON.stringify({ fold, token, workToken }),
       });
-      console.log("Done");
     } catch (e) {
-      console.log("Error", e);
+      console.log("Error saving fold", e);
     }
   };
 
@@ -155,10 +160,12 @@ export async function getServerSideProps({ req }) {
   const protocol = req.connection.encrypted ? "https" : "http";
   const baseUrl = req ? `${protocol}://${req.headers.host}` : "";
 
-  const { folds } = await fetch(baseUrl + "/api").then((res) => res.json());
+  const { folds, ip, challenge, token } = await fetch(
+    baseUrl + "/api"
+  ).then((res) => res.json());
   const max = folds.reduce((a, b) => Math.max(a, b));
 
-  return { props: { folds, max } };
+  return { props: { folds, max, challenge, token } };
 }
 
 export default Home;

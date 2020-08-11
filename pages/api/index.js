@@ -1,9 +1,15 @@
 import faunadb, { query as q } from "faunadb";
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
+import work from "work-token/sync";
 
 const { FAUNA_SECRET } = process.env;
+const STRENGTH = 3;
+const SECRET = crypto.randomBytes(16).toString("hex");
 
 let folds = [];
 let started = false;
+const usedChallenges = new Set();
 
 const client = new faunadb.Client({ secret: FAUNA_SECRET });
 
@@ -76,10 +82,12 @@ const addFold = async (newFold, ip) => {
     if (existing) {
       existing.count++;
       await updateDBFold(addDBFold);
+      console.log("Fold updated", newFold);
     } else {
       const data = { fold: newFold, count: 1 };
       folds.push(data);
       await addDBFold(data);
+      console.log("Fold added", newFold);
     }
   } catch (e) {
     console.log("Error adding fold", e);
@@ -100,44 +108,81 @@ const queryBlacklist = async (ip) => {
   }
 };
 
+const removeChallenge = (challenge, timeout) =>
+  setTimeout(() => {
+    usedChallenges.delete(challenge);
+  }, timeout);
+
+const verifyToken = (token) =>
+  new Promise((resolve) => {
+    jwt.verify(token, SECRET, (err, { challenge }) => {
+      if (err && err.name === "TokenExpiredError") {
+        return resolve({ expired: true, challenge: null });
+      }
+      if (err) return reject(err);
+      resolve({ challenge });
+    });
+  });
+
 const api = async (req, res) => {
   await start();
-  console.log("> Start");
 
   if (req.method === "POST") {
     const {
       connection: { remoteAddress },
-      body: { fold, challenge, workToken },
+      body: { fold, token, workToken },
     } = req;
-    console.log("> POST", { fold, challenge, workToken, remoteAddress });
+    console.log("> POST", { fold, token, workToken, remoteAddress });
 
     const blacklisted = await queryBlacklist(remoteAddress);
 
+    // Check req has valid token
+    const { expired, challenge } = await verifyToken(token);
+    if (expired) {
+      console.log("Expired challenge");
+      res.statusCode = 403;
+      res.end("Challenge reuse rejected");
+      return;
+    }
+    console.log({ challenge });
+    if (!work.check(challenge, STRENGTH, workToken)) {
+      console.log("Failed challenge");
+      res.statusCode = 403;
+      res.end("Challenge failed");
+      return;
+    }
+
+    usedChallenges.add(challenge);
+    removeChallenge(challenge, 2 * 60 * 1000);
+
     if (blacklisted) {
+      console.log("Blacklisted");
       res.statusCode = 403;
       res.end("Fold already saved");
       return;
     }
 
     if (!fold || !Number(fold) || parseInt(fold) > 5120 || parseInt(fold) < 1) {
+      console.log("Invalid fold");
       res.statusCode = 400;
       res.end("Invalid fold");
       return;
     }
     addFold(fold.toString(), remoteAddress);
-    // Check IP against blacklist
-    // Check req has valid token
-    // Create challenge & sign
-
-    // Store used challenges
-    // Store new fold to internal cache & DB
-    // Store new IP to blacklist
   }
 
-  const subset = getRandomUniqFolds(1000, generateFoldsArr(folds));
+  const challenge = crypto.randomBytes(50).toString("base64");
+
   res.statusCode = 200;
   res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify({ ip: req.connection.remoteAddress, folds: subset }));
+  res.end(
+    JSON.stringify({
+      ip: req.connection.remoteAddress,
+      challenge,
+      token: jwt.sign({ challenge }, SECRET, { expiresIn: "2m" }),
+      folds: getRandomUniqFolds(1000, generateFoldsArr(folds)),
+    })
+  );
 };
 
 export default api;
