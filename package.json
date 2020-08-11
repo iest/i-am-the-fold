@@ -16,8 +16,7 @@
     "next": "^9.5.1",
     "ramda": "^0.27.1",
     "react": "^16.13.1",
-    "react-dom": "^16.13.1",
-    "rebass": "^4.0.7"
+    "react-dom": "^16.13.1"
   },
   "devDependencies": {
     "esm": "^3.2.25",
