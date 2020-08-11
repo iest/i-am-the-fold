@@ -12,9 +12,7 @@ const Home = ({ folds, max, challenge, token }) => {
 
   const saveFold = async (fold) => {
     try {
-      console.time("Generated");
       const workToken = await work.generate(challenge, STRENGTH);
-      console.timeEnd("Generated");
       await fetch("/api", {
         method: "POST",
         headers: {

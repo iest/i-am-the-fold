@@ -117,9 +117,9 @@ const verifyToken = (token) =>
   new Promise((resolve) => {
     jwt.verify(token, SECRET, (err, { challenge }) => {
       if (err && err.name === "TokenExpiredError") {
-        return resolve({ expired: true, challenge: null });
+        return resolve({ expired: true });
       }
-      if (err) return reject(err);
+      if (err) return resolve({ err });
       resolve({ challenge });
     });
   });
@@ -132,29 +132,9 @@ const api = async (req, res) => {
       connection: { remoteAddress },
       body: { fold, token, workToken },
     } = req;
-    console.log("> POST", { fold, token, workToken, remoteAddress });
 
+    // Make sure this IP hasn't already submitted a fold
     const blacklisted = await queryBlacklist(remoteAddress);
-
-    // Check req has valid token
-    const { expired, challenge } = await verifyToken(token);
-    if (expired) {
-      console.log("Expired challenge");
-      res.statusCode = 403;
-      res.end("Challenge reuse rejected");
-      return;
-    }
-    console.log({ challenge });
-    if (!work.check(challenge, STRENGTH, workToken)) {
-      console.log("Failed challenge");
-      res.statusCode = 403;
-      res.end("Challenge failed");
-      return;
-    }
-
-    usedChallenges.add(challenge);
-    removeChallenge(challenge, 2 * 60 * 1000);
-
     if (blacklisted) {
       console.log("Blacklisted");
       res.statusCode = 403;
@@ -162,15 +142,49 @@ const api = async (req, res) => {
       return;
     }
 
-    if (!fold || !Number(fold) || parseInt(fold) > 5120 || parseInt(fold) < 1) {
+    // Verify the challenge was created by this server and hasn't expired
+    const { expired, challenge, err } = await verifyToken(token);
+    if (err || expired) {
+      res.statusCode(403);
+      res.end("Bad token");
+      return;
+    }
+
+    // Verify the challenge hasn't already been used
+    if (usedChallenges.has(challenge)) {
+      res.statusCode(403);
+      res.end("Challenge reuse rejected");
+      return;
+    }
+
+    // Verify that the proof-of-work checks out
+    if (!work.check(challenge, STRENGTH, workToken)) {
+      console.log("Failed challenge");
+      res.statusCode = 403;
+      res.end("Challenge failed");
+      return;
+    }
+
+    // Cool! We have valid proof-of-work
+    usedChallenges.add(challenge);
+    removeChallenge(challenge, 2 * 60 * 1000);
+
+    // Check the submitted fold is actually valid
+    if (!fold || !Number(fold) || parseInt(fold) > 7680 || parseInt(fold) < 1) {
       console.log("Invalid fold");
       res.statusCode = 400;
       res.end("Invalid fold");
       return;
     }
+
+    // Cool! We have a valid fold and we're done here
     addFold(fold.toString(), remoteAddress);
+    res.statusCode = 200;
+    res.end();
+    return;
   }
 
+  // Generate a challenge for the client to work on
   const challenge = crypto.randomBytes(50).toString("base64");
 
   res.statusCode = 200;
@@ -179,6 +193,7 @@ const api = async (req, res) => {
     JSON.stringify({
       ip: req.connection.remoteAddress,
       challenge,
+      // Send the encoded challenge down to the client so we can later verify it
       token: jwt.sign({ challenge }, SECRET, { expiresIn: "2m" }),
       folds: getRandomUniqFolds(1000, generateFoldsArr(folds)),
     })
