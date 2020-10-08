@@ -14,7 +14,7 @@
     "@mdx-js/loader": "^1.6.16",
     "@next/mdx": "^9.5.1",
     "jsonwebtoken": "^8.5.1",
-    "next": "^9.5.1",
+    "next": "^9.5.4",
     "ramda": "^0.27.1",
     "react": "^16.13.1",
     "react-dom": "^16.13.1",
