@@ -1,6 +1,6 @@
 {
   "name": "i-am-the-fold",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "",
   "repository": "https://github.com/iest/i-am-the-fold",
   "author": "Iestyn Williams",
@@ -12,6 +12,10 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@mdx-js/loader": "^3.0.1",
+    "@mdx-js/react": "^3.0.1",
+    "@next/mdx": "^14.2.5",
+    "@types/mdx": "^2.0.13",
     "jsonwebtoken": "^8.5.1",
     "next": "^14.2.5",
     "ramda": "^0.27.1",
@@ -20,6 +24,10 @@
     "work-token": "^1.0.2"
   },
   "devDependencies": {
+    "@types/node": "20.14.12",
+    "@types/react": "18.3.3",
+    "eslint": "8.57.0",
+    "eslint-config-next": "14.2.5",
     "esm": "^3.2.25",
     "faunadb": "^2.14.2",
     "typescript": "^5.5.4"

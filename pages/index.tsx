@@ -1,13 +1,31 @@
+import type { InferGetServerSidePropsType, GetServerSideProps } from "next";
 import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import work from "work-token/async";
 
-import Header from "@mdx/header.mdx";
-import Footer from "@mdx/footer.mdx";
+import Header from "../mdx/header.mdx";
+import Footer from "../mdx/footer.mdx";
 
 const STRENGTH = 3;
 
-const Home = ({ folds, max, challenge, token }) => {
+export const getServerSideProps = (async ({ req }) => {
+  const protocol = req.connection.encrypted ? "https" : "http";
+  const baseUrl = req ? `${protocol}://${req.headers.host}` : "";
+
+  // const { folds, ip, challenge, token } = await fetch(baseUrl + "/api").then(
+  //   (res) => res.json()
+  // );
+  // const max = folds.reduce((a, b) => Math.max(a, b));
+
+  return { props: { folds: [], max: 1000, challenge: "", token: "" } };
+}) satisfies GetServerSideProps<{}>;
+
+export default function Page({
+  folds,
+  max,
+  challenge,
+  token,
+}: InferGetServerSidePropsType<typeof getServerSideProps>) {
   const [fold, setFold] = useState();
 
   const saveFold = async (fold) => {
@@ -152,18 +170,4 @@ const Home = ({ folds, max, challenge, token }) => {
       </footer>
     </>
   );
-};
-
-export async function getServerSideProps({ req }) {
-  const protocol = req.connection.encrypted ? "https" : "http";
-  const baseUrl = req ? `${protocol}://${req.headers.host}` : "";
-
-  const { folds, ip, challenge, token } = await fetch(
-    baseUrl + "/api"
-  ).then((res) => res.json());
-  const max = folds.reduce((a, b) => Math.max(a, b));
-
-  return { props: { folds, max, challenge, token } };
 }
-
-export default Home;
