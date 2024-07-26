@@ -6,22 +6,22 @@
   "author": "Iestyn Williams",
   "license": "MIT",
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "@mdx-js/loader": "^1.6.16",
-    "@next/mdx": "^9.5.1",
     "jsonwebtoken": "^8.5.1",
-    "next": "^9.5.1",
+    "next": "^14.2.5",
     "ramda": "^0.27.1",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "work-token": "^1.0.2"
   },
   "devDependencies": {
     "esm": "^3.2.25",
-    "faunadb": "^2.14.2"
+    "faunadb": "^2.14.2",
+    "typescript": "^5.5.4"
   }
 }
