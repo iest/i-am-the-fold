@@ -61,12 +61,6 @@ export default function Page({
           name="description"
           content="An experiment to show how designing for The Fold can be treacherous"
         />
-
-        <link
-          href="http://fonts.googleapis.com/css?family=Fira+Mono:400,700"
-          rel="stylesheet"
-          type="text/css"
-        />
       </Head>
 
       <style global jsx>{`
@@ -170,6 +164,7 @@ export default function Page({
 
       <footer>
         <Footer />
+        <p>&copy; 2015 - {new Date().getFullYear()} </p>
       </footer>
     </>
   );
