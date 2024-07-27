@@ -1,16 +1,37 @@
-import React, { useEffect, useState } from "react";
+import type { InferGetServerSidePropsType } from "next";
+import React, { useState, useEffect } from "react";
 import Head from "next/head";
 import work from "work-token/async";
+import * as tls from "tls";
 
-import Header from "@mdx/header.mdx";
-import Footer from "@mdx/footer.mdx";
+import Header from "../mdx/header.mdx";
+import Footer from "../mdx/footer.mdx";
+import { ResponseData } from "../util";
 
 const STRENGTH = 3;
 
-const Home = ({ folds, max, challenge, token }) => {
-  const [fold, setFold] = useState();
+export const getServerSideProps = async ({ req }) => {
+  const protocol =
+    req.socket instanceof tls.TLSSocket && req.socket.encrypted
+      ? "https"
+      : "http";
+  const baseUrl = req ? `${protocol}://${req.headers.host}` : "";
 
-  const saveFold = async (fold) => {
+  const { folds, max, challenge, token }: ResponseData = await fetch(
+    baseUrl + "/api"
+  ).then((res) => res.json());
+  return { props: { folds, max, challenge, token } };
+};
+
+export default function Page({
+  folds,
+  max,
+  challenge,
+  token,
+}: InferGetServerSidePropsType<typeof getServerSideProps>) {
+  const [fold, setFold] = useState<number>();
+
+  const saveFold = async (fold: number) => {
     try {
       const workToken = await work.generate(challenge, STRENGTH);
       await fetch("/api", {
@@ -39,12 +60,6 @@ const Home = ({ folds, max, challenge, token }) => {
         <meta
           name="description"
           content="An experiment to show how designing for The Fold can be treacherous"
-        />
-
-        <link
-          href="http://fonts.googleapis.com/css?family=Fira+Mono:400,700"
-          rel="stylesheet"
-          type="text/css"
         />
       </Head>
 
@@ -134,7 +149,7 @@ const Home = ({ folds, max, challenge, token }) => {
         <Header />
       </header>
 
-      <ul style={{ height: `${max}px` }}>
+      <ul style={{ height: `${max + 30}px`, minHeight: "calc(100vh - 150px)" }}>
         {folds.map((fold, i) => (
           <li key={fold + i} style={{ top: `${fold}px` }}>
             <span>{fold}</span>
@@ -149,21 +164,16 @@ const Home = ({ folds, max, challenge, token }) => {
 
       <footer>
         <Footer />
+        <p
+          style={{
+            textAlign: "center",
+            marginTop: "1em",
+            opacity: 0.5,
+          }}
+        >
+          &copy; 2015 - {new Date().getFullYear()}{" "}
+        </p>
       </footer>
     </>
   );
-};
-
-export async function getServerSideProps({ req }) {
-  const protocol = req.connection.encrypted ? "https" : "http";
-  const baseUrl = req ? `${protocol}://${req.headers.host}` : "";
-
-  const { folds, ip, challenge, token } = await fetch(
-    baseUrl + "/api"
-  ).then((res) => res.json());
-  const max = folds.reduce((a, b) => Math.max(a, b));
-
-  return { props: { folds, max, challenge, token } };
 }
-
-export default Home;

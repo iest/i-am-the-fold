@@ -1,27 +1,36 @@
 {
   "name": "i-am-the-fold",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "",
   "repository": "https://github.com/iest/i-am-the-fold",
   "author": "Iestyn Williams",
   "license": "MIT",
   "scripts": {
-    "dev": "next",
+    "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "next lint"
   },
   "dependencies": {
-    "@mdx-js/loader": "^1.6.16",
-    "@next/mdx": "^9.5.1",
-    "jsonwebtoken": "^8.5.1",
-    "next": "^9.5.1",
-    "ramda": "^0.27.1",
-    "react": "^16.13.1",
-    "react-dom": "^16.13.1",
+    "@mdx-js/loader": "^3.0.1",
+    "@mdx-js/react": "^3.0.1",
+    "@next/mdx": "^14.2.5",
+    "@types/mdx": "^2.0.13",
+    "@vercel/analytics": "^1.3.1",
+    "@vercel/kv": "^2.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "next": "^14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "work-token": "^1.0.2"
   },
   "devDependencies": {
-    "esm": "^3.2.25",
-    "faunadb": "^2.14.2"
+    "@types/jsonwebtoken": "^9.0.6",
+    "typescript": "^5",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "14.2.5"
   }
 }
