@@ -1,6 +1,4 @@
 node_modules
 .next
-folds.txt
-blacklist.txt
-
 .vercel
+.env.*

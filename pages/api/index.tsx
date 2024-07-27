@@ -1,203 +1,151 @@
-import faunadb, { query as q } from "faunadb";
+import { kv } from "@vercel/kv";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
+import { NextApiRequest, NextApiResponse } from "next";
 import work from "work-token/sync";
+import { ResponseData } from "../../util";
 
-const { FAUNA_SECRET } = process.env;
 const STRENGTH = 3;
 const SECRET = crypto.randomBytes(16).toString("hex");
 
-let folds = [];
-let started = false;
-const usedChallenges = new Set();
+class DB {
+  challengeTTL = 2 * 60 * 1000;
+  challenges = new Set();
 
-const client = new faunadb.Client({ secret: FAUNA_SECRET });
+  USED_IPS = "used_ips";
+  FOLDS = "folds";
 
-const fetchFolds = async (nextAfter, allData = []) => {
-  const { data, after } = await client.query(
-    q.Map(
-      q.Paginate(q.Documents(q.Collection("folds")), {
-        size: 50000,
-        after: nextAfter,
-      }),
-      q.Lambda((x) => q.Get(x))
-    )
-  );
-  const newData = allData.concat(data);
-  if (after) return await fetchFolds(after, newData);
-  return newData.map(({ data }) => data);
-};
-
-const fillFold = ({ fold, count }) => Array(count).fill(fold);
-const generateFoldsArr = (foldCounts) =>
-  foldCounts.reduce((acc, val) => acc.concat(fillFold(val)), []);
-
-const getRandomInt = (min, max) =>
-  Math.floor(Math.random() * (max - min) + min);
-
-const getRandomUniqInt = (min, max, ints = []) => {
-  const int = getRandomInt(min, max);
-  if (ints.indexOf(int) === -1) return int;
-  return getRandomUniqInt(min, max, ints);
-};
-
-const getRandomUniqFolds = (count, arr) => {
-  const indicies = [];
-  for (let i = 0; i < count; i++) {
-    const index = getRandomUniqInt(0, arr.length - 1, indicies);
-    indicies.push(index);
+  async checkChallenge(challenge: string) {
+    return this.challenges.has(challenge);
   }
-  return indicies.map((undex) => arr[undex]);
-};
+  async useChallenge(challenge: string) {
+    this.challenges.add(challenge);
+    setTimeout(() => this.challenges.delete(challenge), this.challengeTTL);
+  }
 
-const start = async () => {
-  if (started) return;
-  folds = await fetchFolds();
-  started = true;
-};
+  async checkIP(ip: string) {
+    return await kv.sismember(this.USED_IPS, ip);
+  }
 
-const addDBBlacklist = async (value) =>
-  client.query(q.Create(q.Collection("blacklist"), { data: { value } }));
+  async getFolds() {
+    const foldData: Record<string, number> = await kv.hgetall(this.FOLDS);
 
-const addDBFold = (data) =>
-  client.query(q.Create(q.Collection("folds"), { data }));
-
-const updateDBFold = async (newfold) => {
-  const { ref, data } = await client.query(
-    q.Get(q.Match(q.Index("folds_by_fold"), newFold))
-  );
-  await client.query(
-    q.Update(q.Ref(ref), {
-      data: {
-        count: data.count + 1,
-      },
-    })
-  );
-};
-
-const addFold = async (newFold, ip) => {
-  try {
-    addDBBlacklist(ip);
-    const existing = folds.find(({ fold }) => fold === newFold);
-    if (existing) {
-      existing.count++;
-      await updateDBFold(addDBFold);
-      console.log("Fold updated", newFold);
-    } else {
-      const data = { fold: newFold, count: 1 };
-      folds.push(data);
-      await addDBFold(data);
-      console.log("Fold added", newFold);
+    if (!foldData) {
+      return [];
     }
-  } catch (e) {
-    console.log("Error adding fold", e);
-  }
-};
 
-const queryBlacklist = async (ip) => {
-  try {
-    const blacklisted = await client.query(
-      q.Get(q.Match(q.Index("blacklist_by_ip"), ip))
-    );
-    if (blacklisted) {
-      return true;
-    }
-  } catch (e) {
-    if (e.message === "instance not found") return false;
-    throw e;
-  }
-};
+    const folds: number[] = [];
 
-const removeChallenge = (challenge, timeout) =>
-  setTimeout(() => {
-    usedChallenges.delete(challenge);
-  }, timeout);
-
-const verifyToken = (token) =>
-  new Promise((resolve) => {
-    jwt.verify(token, SECRET, (err, { challenge }) => {
-      if (err && err.name === "TokenExpiredError") {
-        return resolve({ expired: true });
+    for (const [key, value] of Object.entries(foldData)) {
+      for (let i = 0; i < value; i++) {
+        folds.push(Number(key));
       }
-      if (err) return resolve({ err });
-      resolve({ challenge });
-    });
-  });
+    }
+    return folds;
+  }
+  async getRandomUniqFolds() {
+    const SAMPLE_SIZE = 1000;
+    const folds = await this.getFolds();
+    const uniqFolds = new Set<number>();
 
-const api = async (req, res) => {
-  await start();
+    if (folds.length < SAMPLE_SIZE) {
+      return folds;
+    }
 
+    while (uniqFolds.size < SAMPLE_SIZE) {
+      uniqFolds.add(folds[Math.floor(Math.random() * folds.length)]);
+    }
+
+    return Array.from(uniqFolds);
+  }
+
+  async addFold(fold: number, ip: string) {
+    await kv.hincrby(this.FOLDS, fold.toString(), 1);
+    await kv.sadd(this.USED_IPS, ip);
+  }
+}
+const db = new DB();
+
+const verifyToken = async (token: string) => {
+  try {
+    const { challenge, exp } = jwt.verify(token, SECRET) as {
+      challenge: string;
+      exp: number;
+    };
+    return { challenge, expired: Date.now() > exp };
+  } catch (err) {
+    return { err, expired: true };
+  }
+};
+
+const verifyFold = (foldStr: string) => {
+  const tallestScreen = 7680; // 8k screen
+  const fold = Number(foldStr);
+  return !foldStr || !fold || fold > tallestScreen || fold < 1;
+};
+
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse<ResponseData | { message: string }>
+) {
   if (req.method === "POST") {
     const {
-      connection: { remoteAddress },
+      socket: { remoteAddress },
       body: { fold, token, workToken },
     } = req;
 
     // Make sure this IP hasn't already submitted a fold
-    const blacklisted = await queryBlacklist(remoteAddress);
-    if (blacklisted) {
-      console.log("Blacklisted");
-      res.statusCode = 403;
-      res.end("Fold already saved");
+    if (await db.checkIP(remoteAddress)) {
+      res.status(403).send({ message: "Fold already saved" });
       return;
     }
 
     // Verify the challenge was created by this server and hasn't expired
     const { expired, challenge, err } = await verifyToken(token);
     if (err || expired) {
-      res.statusCode(403);
-      res.end("Bad token");
+      res.status(403).send({ message: "Bad token" });
       return;
     }
 
     // Verify the challenge hasn't already been used
-    if (usedChallenges.has(challenge)) {
-      res.statusCode(403);
-      res.end("Challenge reuse rejected");
+    if (await db.checkChallenge(challenge)) {
+      res.status(403).send({ message: "Challenge reuse rejected" });
       return;
     }
 
     // Verify that the proof-of-work checks out
     if (!work.check(challenge, STRENGTH, workToken)) {
-      console.log("Failed challenge");
-      res.statusCode = 403;
-      res.end("Challenge failed");
+      res.status(403).send({ message: "Challenge failed" });
       return;
     }
 
     // Cool! We have valid proof-of-work
-    usedChallenges.add(challenge);
-    removeChallenge(challenge, 2 * 60 * 1000);
+    await db.useChallenge(challenge);
 
     // Check the submitted fold is actually valid
-    if (!fold || !Number(fold) || parseInt(fold) > 7680 || parseInt(fold) < 1) {
-      console.log("Invalid fold");
-      res.statusCode = 400;
-      res.end("Invalid fold");
+    if (!verifyFold(fold)) {
+      res.status(400).send({ message: "Invalid fold" });
       return;
     }
 
     // Cool! We have a valid fold and we're done here
-    addFold(fold.toString(), remoteAddress);
-    res.statusCode = 200;
-    res.end();
+    db.addFold(fold, remoteAddress);
+    res.status(200).send({ message: "Fold saved" });
     return;
   }
 
   // Generate a challenge for the client to work on
   const challenge = crypto.randomBytes(50).toString("base64");
 
-  res.statusCode = 200;
-  res.setHeader("Content-Type", "application/json");
-  res.end(
-    JSON.stringify({
-      ip: req.connection.remoteAddress,
-      challenge,
-      // Send the encoded challenge down to the client so we can later verify it
-      token: jwt.sign({ challenge }, SECRET, { expiresIn: "2m" }),
-      folds: getRandomUniqFolds(1000, generateFoldsArr(folds)),
-    })
-  );
-};
+  const folds = await db.getRandomUniqFolds();
+  const max = folds.reduce((a, b) => Math.max(a, b), 0);
 
-export default api;
+  const token = jwt.sign({ challenge }, SECRET, { expiresIn: "2m" });
+
+  res.send({
+    folds,
+    max,
+    challenge,
+    token,
+  });
+}

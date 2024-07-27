@@ -2,23 +2,26 @@ import type { InferGetServerSidePropsType, GetServerSideProps } from "next";
 import React, { useEffect, useState } from "react";
 import Head from "next/head";
 import work from "work-token/async";
+import * as tls from "tls";
 
 import Header from "../mdx/header.mdx";
 import Footer from "../mdx/footer.mdx";
+import { ResponseData } from "../util";
 
 const STRENGTH = 3;
 
 export const getServerSideProps = (async ({ req }) => {
-  const protocol = req.connection.encrypted ? "https" : "http";
+  const protocol =
+    req.socket instanceof tls.TLSSocket && req.socket.encrypted
+      ? "https"
+      : "http";
   const baseUrl = req ? `${protocol}://${req.headers.host}` : "";
 
-  // const { folds, ip, challenge, token } = await fetch(baseUrl + "/api").then(
-  //   (res) => res.json()
-  // );
-  // const max = folds.reduce((a, b) => Math.max(a, b));
-
-  return { props: { folds: [], max: 1000, challenge: "", token: "" } };
-}) satisfies GetServerSideProps<{}>;
+  const { folds, max, challenge, token } = await fetch(baseUrl + "/api").then(
+    (res) => res.json()
+  );
+  return { props: { folds, max, challenge, token } };
+}) satisfies GetServerSideProps<ResponseData>;
 
 export default function Page({
   folds,
@@ -152,7 +155,7 @@ export default function Page({
         <Header />
       </header>
 
-      <ul style={{ height: `${max}px` }}>
+      <ul style={{ height: `${max}px`, minHeight: "80vh" }}>
         {folds.map((fold, i) => (
           <li key={fold + i} style={{ top: `${fold}px` }}>
             <span>{fold}</span>
