@@ -155,7 +155,7 @@ export default function Page({
         <Header />
       </header>
 
-      <ul style={{ height: `${max}px`, minHeight: "80vh" }}>
+      <ul style={{ height: `${max + 30}px`, minHeight: "calc(100vh - 150px)" }}>
         {folds.map((fold, i) => (
           <li key={fold + i} style={{ top: `${fold}px` }}>
             <span>{fold}</span>
