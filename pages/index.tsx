@@ -1,5 +1,5 @@
-import type { InferGetServerSidePropsType, GetServerSideProps } from "next";
-import React, { useEffect, useState } from "react";
+import type { InferGetServerSidePropsType } from "next";
+import React, { useState, useEffect } from "react";
 import Head from "next/head";
 import work from "work-token/async";
 import * as tls from "tls";
@@ -10,18 +10,18 @@ import { ResponseData } from "../util";
 
 const STRENGTH = 3;
 
-export const getServerSideProps = (async ({ req }) => {
+export const getServerSideProps = async ({ req }) => {
   const protocol =
     req.socket instanceof tls.TLSSocket && req.socket.encrypted
       ? "https"
       : "http";
   const baseUrl = req ? `${protocol}://${req.headers.host}` : "";
 
-  const { folds, max, challenge, token } = await fetch(baseUrl + "/api").then(
-    (res) => res.json()
-  );
+  const { folds, max, challenge, token }: ResponseData = await fetch(
+    baseUrl + "/api"
+  ).then((res) => res.json());
   return { props: { folds, max, challenge, token } };
-}) satisfies GetServerSideProps<ResponseData>;
+};
 
 export default function Page({
   folds,
@@ -29,9 +29,9 @@ export default function Page({
   challenge,
   token,
 }: InferGetServerSidePropsType<typeof getServerSideProps>) {
-  const [fold, setFold] = useState();
+  const [fold, setFold] = useState<number>();
 
-  const saveFold = async (fold) => {
+  const saveFold = async (fold: number) => {
     try {
       const workToken = await work.generate(challenge, STRENGTH);
       await fetch("/api", {
