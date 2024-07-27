@@ -164,7 +164,15 @@ export default function Page({
 
       <footer>
         <Footer />
-        <p>&copy; 2015 - {new Date().getFullYear()} </p>
+        <p
+          style={{
+            textAlign: "center",
+            marginTop: "1em",
+            opacity: 0.5,
+          }}
+        >
+          &copy; 2015 - {new Date().getFullYear()}{" "}
+        </p>
       </footer>
     </>
   );
