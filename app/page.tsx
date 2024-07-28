@@ -9,7 +9,7 @@ import { Fold } from "./Fold";
 const db = new DB();
 
 export default async function Page() {
-  const folds = await db.getFolds();
+  const folds = await db.getFoldSample();
   const max = Math.max(...folds);
   const challenge = crypto.randomBytes(50).toString("base64");
   const token = createToken(challenge);
@@ -46,3 +46,4 @@ export default async function Page() {
 }
 
 export const dynamic = "force-dynamic";
+export const revalidate = 60;
