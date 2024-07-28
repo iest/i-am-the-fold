@@ -15,11 +15,10 @@ const db = new DB();
 
 export async function POST(req: NextRequest) {
   const { fold, token, workToken } = await req.json();
-  const ip =
-    req.ip ||
-    req.headers["x-real-ip"] ||
-    req.headers["x-forwarded-for"] ||
-    "no-ip";
+  const forwarded = req.headers.get("x-forwarded-for");
+  const ip = forwarded ? forwarded.split(",")[0] : req.ip;
+
+  console.log(">>>>", { ip });
 
   if (!fold || !token || !workToken) {
     return NextResponse.json(
