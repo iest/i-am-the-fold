@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const db = new DB();
 
-export async function POST(req: Request, res: Response) {
+export async function POST(req: NextRequest) {
   const { fold, token, workToken } = await req.json();
   const ip =
     req.ip ||
