@@ -53,7 +53,7 @@ export class DB {
     }
     return folds;
   }
-  async getRandomUniqFolds() {
+  async getFoldSample() {
     const SAMPLE_SIZE = 1000;
     const folds = await this.getFolds();
     const uniqFolds = new Set<number>();
@@ -63,7 +63,8 @@ export class DB {
     }
 
     while (uniqFolds.size < SAMPLE_SIZE) {
-      uniqFolds.add(folds[Math.floor(Math.random() * folds.length)]);
+      const randomIndex = Math.floor(Math.random() * folds.length);
+      uniqFolds.add(folds[randomIndex]);
     }
 
     return Array.from(uniqFolds);
