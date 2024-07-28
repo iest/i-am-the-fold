@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { headers } from "next/headers";
 import { NextApiRequest, NextApiResponse } from "next";
 import {
   createToken,
@@ -11,15 +12,26 @@ import {
 
 const db = new DB();
 
+const getIP = (req: NextApiRequest) => {
+  const FALLBACK_IP_ADDRESS = "0.0.0.0";
+  const forwardedFor = headers().get("x-forwarded-for");
+
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0] ?? FALLBACK_IP_ADDRESS;
+  }
+
+  return headers().get("x-real-ip") ?? FALLBACK_IP_ADDRESS;
+};
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<ResponseData | { message: string }>
 ) {
   if (req.method === "POST") {
     const {
-      socket: { remoteAddress },
       body: { fold, token, workToken },
     } = req;
+    const ip = getIP(req);
 
     if (!fold || !token || !workToken) {
       res.status(400).send({ message: "Missing parameters" });
@@ -27,8 +39,8 @@ export default async function handler(
     }
 
     // Make sure this IP hasn't already submitted a fold
-    if (await db.checkIP(remoteAddress)) {
-      console.log("Fold already saved", { remoteAddress });
+    if (await db.checkIP(ip)) {
+      console.log("Fold already saved", { ip });
       res.status(403).send({ message: "Fold already saved" });
       return;
     }
@@ -66,7 +78,7 @@ export default async function handler(
     }
 
     // Cool! We have a valid fold and we're done here
-    db.addFold(fold, remoteAddress);
+    db.addFold(fold, ip);
     res.status(200).send({ message: "Fold saved" });
     return;
   }
