@@ -19,7 +19,11 @@ export const Fold = ({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ fold, token, workToken }),
+        body: JSON.stringify({
+          fold,
+          token,
+          workToken,
+        }),
       });
     } catch (e) {
       console.log("Error saving fold", e);

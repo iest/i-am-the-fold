@@ -13,7 +13,6 @@ export const metadata: Metadata = {
   title: "I am the fold",
   description:
     "An experiment to show how designing for The Fold can be treacherous",
-  viewport: "width=device-width initial-scale=1",
 };
 
 export default function RootLayout({
