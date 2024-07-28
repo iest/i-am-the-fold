@@ -1,10 +1,9 @@
 import jwt, { JwtPayload } from "jsonwebtoken";
-import crypto from "crypto";
 import { kv } from "@vercel/kv";
 import work from "work-token/sync";
 
 export const STRENGTH = 3;
-export const SECRET = crypto.randomBytes(16).toString("hex");
+const SECRET = process.env.SECRET;
 
 export type ResponseData = {
   folds: number[];

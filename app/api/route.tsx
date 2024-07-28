@@ -1,14 +1,4 @@
-import crypto from "crypto";
-import { headers } from "next/headers";
-import { NextApiRequest, NextApiResponse } from "next";
-import {
-  createToken,
-  DB,
-  ResponseData,
-  verifyFold,
-  verifyToken,
-  verifyWork,
-} from "../../util";
+import { DB, verifyFold, verifyToken, verifyWork } from "../../util";
 import { NextRequest, NextResponse } from "next/server";
 
 const db = new DB();
@@ -17,8 +7,6 @@ export async function POST(req: NextRequest) {
   const { fold, token, workToken } = await req.json();
   const forwarded = req.headers.get("x-forwarded-for");
   const ip = forwarded ? forwarded.split(",")[0] : req.ip;
-
-  console.log(">>>>", { ip });
 
   if (!fold || !token || !workToken) {
     return NextResponse.json(
