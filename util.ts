@@ -1,10 +1,9 @@
 import jwt, { JwtPayload } from "jsonwebtoken";
-import crypto from "crypto";
 import { kv } from "@vercel/kv";
 import work from "work-token/sync";
 
 export const STRENGTH = 3;
-export const SECRET = crypto.randomBytes(16).toString("hex");
+const SECRET = process.env.SECRET;
 
 export type ResponseData = {
   folds: number[];
@@ -34,7 +33,8 @@ export class DB {
   }
 
   async checkIP(ip: string) {
-    return await kv.sismember(this.USED_IPS, ip);
+    const isUsed = await kv.sismember(this.USED_IPS, ip);
+    return isUsed;
   }
 
   async getFolds() {
@@ -93,16 +93,13 @@ export const verifyFold = (fold: number) => {
     return false;
   }
   const tallestScreen = 7680; // 8k screen
-  console.log({
-    fold,
-    [`!fold`]: !fold,
-    [`fold > tallestScreen`]: fold > tallestScreen,
-    [`fold < 1`]: fold < 1,
-  });
 
   return !fold || fold > tallestScreen || fold < 1;
 };
 
 export const verifyWork = (challenge: string, workToken: string) => {
   return work.check(challenge, STRENGTH, workToken);
+};
+export const createWork = (challenge: string) => {
+  return work.generate(challenge, STRENGTH);
 };
