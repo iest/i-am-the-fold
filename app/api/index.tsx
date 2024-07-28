@@ -13,14 +13,9 @@ import {
 const db = new DB();
 
 const getIP = (req: NextApiRequest) => {
-  const FALLBACK_IP_ADDRESS = "0.0.0.0";
-  const forwardedFor = headers().get("x-forwarded-for");
-
-  if (forwardedFor) {
-    return forwardedFor.split(",")[0] ?? FALLBACK_IP_ADDRESS;
-  }
-
-  return headers().get("x-real-ip") ?? FALLBACK_IP_ADDRESS;
+  return (
+    req.ip || req.headers.get("X-Forwarded-For") || req.connection.remoteAddress
+  );
 };
 
 export default async function handler(
@@ -32,6 +27,7 @@ export default async function handler(
       body: { fold, token, workToken },
     } = req;
     const ip = getIP(req);
+    console.log({ ip });
 
     if (!fold || !token || !workToken) {
       res.status(400).send({ message: "Missing parameters" });

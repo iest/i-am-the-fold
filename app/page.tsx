@@ -3,54 +3,20 @@ import React, { useState, useEffect } from "react";
 import Head from "next/head";
 import work from "work-token/async";
 import * as tls from "tls";
+import crypto from "crypto";
 
 import Header from "../mdx/header.mdx";
 import Footer from "../mdx/footer.mdx";
-import { ResponseData } from "../util";
+import { createToken, createWork, DB, ResponseData } from "../util";
+import { Fold } from "./Fold";
 
-const STRENGTH = 3;
+const db = new DB();
 
-export const getServerSideProps = async ({ req }) => {
-  const protocol =
-    req.socket instanceof tls.TLSSocket && req.socket.encrypted
-      ? "https"
-      : "http";
-  const baseUrl = req ? `${protocol}://${req.headers.host}` : "";
-
-  const { folds, max, challenge, token }: ResponseData = await fetch(
-    baseUrl + "/api"
-  ).then((res) => res.json());
-  return { props: { folds, max, challenge, token } };
-};
-
-export default function Page({
-  folds,
-  max,
-  challenge,
-  token,
-}: InferGetServerSidePropsType<typeof getServerSideProps>) {
-  const [fold, setFold] = useState<number>();
-
-  const saveFold = async (fold: number) => {
-    try {
-      const workToken = await work.generate(challenge, STRENGTH);
-      await fetch("/api", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ fold, token, workToken }),
-      });
-    } catch (e) {
-      console.log("Error saving fold", e);
-    }
-  };
-
-  useEffect(() => {
-    const fold = window.innerHeight;
-    setFold(fold);
-    saveFold(fold);
-  }, []);
+export default async function Page() {
+  const folds = await db.getFolds();
+  const max = Math.max(...folds);
+  const challenge = crypto.randomBytes(50).toString("base64");
+  const token = createToken(challenge);
 
   return (
     <>
@@ -155,11 +121,7 @@ export default function Page({
             <span>{fold}</span>
           </li>
         ))}
-        {fold && (
-          <li className="current" style={{ top: `${fold}px` }}>
-            <span>{fold}</span>
-          </li>
-        )}
+        <Fold token={token} challenge={challenge} />
       </ul>
 
       <footer>

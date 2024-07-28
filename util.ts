@@ -106,3 +106,6 @@ export const verifyFold = (fold: number) => {
 export const verifyWork = (challenge: string, workToken: string) => {
   return work.check(challenge, STRENGTH, workToken);
 };
+export const createWork = (challenge: string) => {
+  return work.generate(challenge, STRENGTH);
+};
