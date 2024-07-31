@@ -1,4 +1,5 @@
 import { Analytics } from "@vercel/analytics/react";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Fira_Mono } from "next/font/google";
 import StyledJsxRegistry from "./registry";
 import type { Metadata } from "next";
@@ -26,6 +27,7 @@ export default function RootLayout({
         <StyledJsxRegistry>{children}</StyledJsxRegistry>
       </body>
       <Analytics />
+      <SpeedInsights />
     </html>
   );
 }
