@@ -25,9 +25,9 @@ export default function RootLayout({
     <html lang="en" className={fira.className}>
       <body>
         <StyledJsxRegistry>{children}</StyledJsxRegistry>
+        <SpeedInsights />
+        <Analytics />
       </body>
-      <Analytics />
-      <SpeedInsights />
     </html>
   );
 }
