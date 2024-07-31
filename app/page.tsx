@@ -38,7 +38,7 @@ export default async function Page() {
             opacity: 0.5,
           }}
         >
-          &copy; 2015 - {new Date().getFullYear()}{" "}
+          &copy; 2015 - {new Date().getFullYear()}
         </p>
       </footer>
     </>

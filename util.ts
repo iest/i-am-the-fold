@@ -18,10 +18,9 @@ interface FoldJWT extends JwtPayload {
 }
 
 export class DB {
-  challengeTTL = 2 * 60 * 1000;
+  challengeTTL = 2 * 60 * 1000; // 2 minutes in milliseconds
+  ipTTL = 2 * 7 * 24 * 60 * 60; // 2 weeks in seconds
   challenges = new Set();
-
-  USED_IPS = "used_ips";
   FOLDS = "folds";
 
   async checkChallenge(challenge: string) {
@@ -32,9 +31,11 @@ export class DB {
     setTimeout(() => this.challenges.delete(challenge), this.challengeTTL);
   }
 
+  async storeIP(ip: string) {
+    return await kv.set(`ip:${ip}`, 1, { ex: this.ipTTL });
+  }
   async checkIP(ip: string) {
-    const isUsed = await kv.sismember(this.USED_IPS, ip);
-    return isUsed;
+    return await kv.exists(`ip:${ip}`);
   }
 
   async getFolds() {
@@ -72,7 +73,7 @@ export class DB {
 
   async addFold(fold: number, ip: string) {
     await kv.hincrby(this.FOLDS, fold.toString(), 1);
-    await kv.sadd(this.USED_IPS, ip);
+    await this.storeIP(ip);
   }
 }
 
