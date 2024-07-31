@@ -36,9 +36,16 @@ export const Fold = ({
     saveFold(height);
   }, []);
 
+  if (!fold) {
+    return null;
+  }
+
   return (
-    <li className="current" style={{ top: `${fold}px` }}>
-      <span>{fold}</span>
+    <li
+      className="w-full absolute border-t border-red z-50"
+      style={{ top: `${fold}px` }}
+    >
+      <span className="bg-red">{fold}</span>
     </li>
   );
 };

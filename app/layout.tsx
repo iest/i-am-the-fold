@@ -23,7 +23,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={fira.className}>
-      <body>
+      <body className="bg-white fg-dark">
         <StyledJsxRegistry>{children}</StyledJsxRegistry>
         <SpeedInsights />
         <Analytics />
