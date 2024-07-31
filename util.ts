@@ -37,9 +37,16 @@ export class DB {
   async checkIP(ip: string) {
     return await kv.exists(`ip:${ip}`);
   }
+  async storeFold(fold: number) {
+    return await kv.hincrby("folds", fold.toString(), 1);
+  }
+  async getAllFolds() {
+    const folds: Record<string, number> = await kv.hgetall("folds");
+    return folds;
+  }
 
-  async getFolds() {
-    const foldData: Record<string, number> = await kv.hgetall(this.FOLDS);
+  async getFoldArray() {
+    const foldData = await this.getAllFolds();
 
     if (!foldData) {
       return [];
@@ -52,11 +59,13 @@ export class DB {
         folds.push(Number(key));
       }
     }
+
     return folds;
   }
+
   async getFoldSample() {
     const SAMPLE_SIZE = 1000;
-    const folds = await this.getFolds();
+    const folds = await this.getFoldArray();
     const uniqFolds = new Set<number>();
 
     if (folds.length < SAMPLE_SIZE) {
@@ -72,8 +81,7 @@ export class DB {
   }
 
   async addFold(fold: number, ip: string) {
-    await kv.hincrby(this.FOLDS, fold.toString(), 1);
-    await this.storeIP(ip);
+    await Promise.all([this.storeFold(fold), this.storeIP(ip)]);
   }
 }
 
@@ -85,7 +93,6 @@ export const verifyToken = async (token: string) => {
     return { err, expired: true };
   }
 };
-
 export const createToken = (challenge: string) => {
   return jwt.sign({ challenge }, SECRET, { expiresIn: "2m" });
 };
