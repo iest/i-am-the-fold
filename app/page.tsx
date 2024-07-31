@@ -84,4 +84,4 @@ export default async function Page() {
   );
 }
 
-export const revalidate = 60;
+export const revalidate = 60 * 5; // 5 minutes
