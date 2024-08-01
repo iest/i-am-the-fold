@@ -15,15 +15,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Make sure this IP hasn't already submitted a fold
-  if (await db.checkIP(ip)) {
-    console.log("Fold already saved", { ip });
-    return NextResponse.json(
-      { message: "Fold already saved" },
-      { status: 403 }
-    );
-  }
-
   // Verify the challenge was created by this server and hasn't expired
   const { expired, challenge, err } = await verifyToken(token);
   if (err || expired) {
@@ -44,6 +35,15 @@ export async function POST(req: NextRequest) {
   if (!verifyWork(challenge, workToken)) {
     console.log("Challenge failed", { challenge });
     return NextResponse.json({ message: "Challenge failed" }, { status: 403 });
+  }
+
+  // Make sure this IP hasn't already submitted a fold
+  if (await db.checkIP(ip)) {
+    console.log("Fold already saved", { ip });
+    return NextResponse.json(
+      { message: "Fold already saved" },
+      { status: 403 }
+    );
   }
 
   // Cool! We have valid proof-of-work
