@@ -6,19 +6,6 @@ import { Fold } from "./Fold";
 
 const db = new DB();
 
-function scale(
-  domain: [number, number],
-  range: [number, number]
-): (value: number) => number {
-  const domainDiff = domain[1] - domain[0];
-  const rangeDiff = range[1] - range[0];
-
-  return (value: number): number => {
-    const scaleFactor = (value - range[0]) / rangeDiff;
-    return domain[0] + scaleFactor * domainDiff;
-  };
-}
-
 export default async function Page() {
   const folds = await db.getFoldSample();
   const max = Math.max(...folds);

@@ -1,8 +1,7 @@
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { kv } from "@vercel/kv";
-import work from "work-token/sync";
 
-export const STRENGTH = 3;
+export const STRENGTH = 4;
 const SECRET = process.env.SECRET;
 
 export type ResponseData = {
@@ -85,6 +84,15 @@ export class DB {
   }
 }
 
+export const verifyFold = (fold: number) => {
+  if (typeof fold !== "number") {
+    return false;
+  }
+  const tallestScreen = 7680; // 8k screen
+
+  return !fold || fold > tallestScreen || fold < 1;
+};
+
 export const verifyToken = async (token: string) => {
   try {
     const { challenge, exp } = jwt.verify(token, SECRET) as FoldJWT;
@@ -97,18 +105,48 @@ export const createToken = (challenge: string) => {
   return jwt.sign({ challenge }, SECRET, { expiresIn: "2m" });
 };
 
-export const verifyFold = (fold: number) => {
-  if (typeof fold !== "number") {
-    return false;
+async function sha256(message: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return hashHex;
+}
+async function findProof(
+  challenge: string,
+  difficulty: number
+): Promise<string> {
+  let proof = 0;
+  const target = "0".repeat(difficulty);
+
+  while (true) {
+    const hash = await sha256(challenge + proof);
+    if (hash.startsWith(target)) {
+      return proof.toString();
+    }
+    proof++;
   }
-  const tallestScreen = 7680; // 8k screen
+}
 
-  return !fold || fold > tallestScreen || fold < 1;
-};
+async function verifyProofOfWork(
+  challenge: string,
+  proof: string,
+  difficulty: number
+): Promise<boolean> {
+  const hash = await sha256(challenge + proof);
+  return hash.startsWith("0".repeat(difficulty));
+}
 
-export const verifyWork = (challenge: string, workToken: string) => {
-  return work.check(challenge, STRENGTH, workToken);
+export const verifyWork = async (challenge: string, proof: string) => {
+  const done = verifyProofOfWork(challenge, proof, STRENGTH);
+  return done;
 };
-export const createWork = (challenge: string) => {
-  return work.generate(challenge, STRENGTH);
+export const solveWork = async (challenge: string) => {
+  console.time("solveWork");
+  const done = await findProof(challenge, STRENGTH);
+  console.timeEnd("solveWork");
+  return done;
 };

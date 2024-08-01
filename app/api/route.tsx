@@ -4,11 +4,11 @@ import { NextRequest, NextResponse } from "next/server";
 const db = new DB();
 
 export async function POST(req: NextRequest) {
-  const { fold, token, workToken } = await req.json();
+  const { fold, token, proof } = await req.json();
   const forwarded = req.headers.get("x-forwarded-for");
   const ip = forwarded ? forwarded.split(",")[0] : req.ip;
 
-  if (!fold || !token || !workToken) {
+  if (!fold || !token || !proof) {
     return NextResponse.json(
       { message: "Missing parameters" },
       { status: 400 }
@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Verify that the proof-of-work checks out
-  if (!verifyWork(challenge, workToken)) {
+  if (!(await verifyWork(challenge, proof))) {
     console.log("Challenge failed", { challenge });
     return NextResponse.json({ message: "Challenge failed" }, { status: 403 });
   }
