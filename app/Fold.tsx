@@ -29,7 +29,6 @@ export const Fold = ({
 }) => {
   const [fold, setFold] = useState<number>();
   const [proof, setProof] = useState<string>();
-  const [saved, setSaved] = useState(false);
   const worker = useWorker((result) => setProof(result));
 
   const saveFold = async () => {
@@ -45,9 +44,6 @@ export const Fold = ({
           token,
         }),
       });
-      if (res.ok) {
-        setSaved(true);
-      }
     } catch (e) {
       console.log("Error saving fold", e);
     }
@@ -78,12 +74,14 @@ export const Fold = ({
 
   return (
     <li
-      className={`w-full absolute border-t ${
-        saved ? "border-green-500" : "border-red"
-      } z-50`}
+      className={`w-full absolute border-t z-50 border-red`}
       style={{ top: `${fold}px` }}
     >
-      <span className={`${saved ? "bg-green-500" : "bg-red"}`}>{fold}</span>
+      <span
+        className={`absolute -top-2.5 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red`}
+      >
+        {fold}
+      </span>
     </li>
   );
 };
