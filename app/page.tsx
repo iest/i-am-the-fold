@@ -11,7 +11,7 @@ export default async function Page() {
 
   return (
     <>
-      <header className="p-4 relative z-20 bg-white gap-4 max-w-4xl flex flex-col mx-auto mb-2">
+      <header className="p-4 relative z-20 gap-4 max-w-4xl flex flex-col mx-auto mb-2">
         <h1 className="text-center mb-1 font-bold text-2xl">I am the fold</h1>
         <p>
           An experiment to show how designing for <em>The Fold</em> can be
@@ -34,12 +34,12 @@ export default async function Page() {
 
       <ul
         style={{ height: `${max + 30}px`, minHeight: "calc(100vh - 150px)" }}
-        className="list-none bg-dark text-white text-center leading-5"
+        className="list-none bg-dark dark:bg-darker text-white text-center leading-5"
       >
         {folds.map((fold, i) => (
           <li
             key={fold + i}
-            className="w-full absolute bg-dark border-t border-white z-10 opacity-10 hover:z-50 hover:opacity-100 group"
+            className="w-full absolute border-t border-white z-10 opacity-10 hover:z-50 hover:opacity-100 group"
             style={{ top: `${fold}px` }}
           >
             <span className="group-hover:bg-white group-hover:text-dark">
