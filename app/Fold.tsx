@@ -1,19 +1,34 @@
 "use client";
-import { useEffect, useState } from "react";
-import { createWork } from "../util";
+import { useEffect, useRef, useState } from "react";
+import { solveWork } from "../util";
 
-export const Fold = ({
-  token,
-  challenge,
-}: {
-  token: string;
-  challenge: string;
-}) => {
+const useWorker = (callback: (result: string) => void) => {
+  const workerRef = useRef<Worker>();
+  useEffect(() => {
+    if (!window.Worker) {
+      console.log("No worker support");
+      return;
+    }
+    workerRef.current = new Worker(new URL("../worker.js", import.meta.url));
+    workerRef.current.onmessage = (e) => {
+      callback(e.data);
+    };
+    return () => {
+      workerRef.current?.terminate();
+    };
+  }, []);
+  return workerRef;
+};
+
+export const Fold = () => {
   const [fold, setFold] = useState<number>();
+  const [proof, setProof] = useState<string>();
+  const worker = useWorker((result) => setProof(result));
+  const [challenge, setChallenge] = useState<string>();
+  const [token, setToken] = useState<string>();
 
-  const saveFold = async (fold: number) => {
+  const saveFold = async () => {
     try {
-      const workToken = await createWork(challenge);
       await fetch("/api", {
         method: "POST",
         headers: {
@@ -21,8 +36,8 @@ export const Fold = ({
         },
         body: JSON.stringify({
           fold,
+          proof,
           token,
-          workToken,
         }),
       });
     } catch (e) {
@@ -33,12 +48,43 @@ export const Fold = ({
   useEffect(() => {
     const height = window.innerHeight;
     setFold(height);
-    saveFold(height);
+
+    fetch("/api")
+      .then((res) => res.json())
+      .then((data) => {
+        setChallenge(data.challenge);
+        setToken(data.token);
+      });
   }, []);
 
+  useEffect(() => {
+    if (!fold || !challenge) return;
+    if (worker.current) {
+      worker.current.postMessage(challenge);
+    } else {
+      solveWork(challenge).then((result) => setProof(result));
+    }
+  }, [fold, challenge]);
+
+  useEffect(() => {
+    if (!proof) return;
+    saveFold();
+  }, [proof]);
+
+  if (!fold) {
+    return null;
+  }
+
   return (
-    <li className="current" style={{ top: `${fold}px` }}>
-      <span>{fold}</span>
+    <li
+      className={`w-full absolute border-t z-50 border-red`}
+      style={{ top: `${fold}px` }}
+    >
+      <span
+        className={`absolute -top-2.5 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-red`}
+      >
+        {fold}
+      </span>
     </li>
   );
 };

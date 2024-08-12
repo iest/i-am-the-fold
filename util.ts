@@ -1,8 +1,7 @@
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { kv } from "@vercel/kv";
-import work from "work-token/sync";
 
-export const STRENGTH = 3;
+export const STRENGTH = 4;
 const SECRET = process.env.SECRET;
 
 export type ResponseData = {
@@ -18,10 +17,9 @@ interface FoldJWT extends JwtPayload {
 }
 
 export class DB {
-  challengeTTL = 2 * 60 * 1000;
+  challengeTTL = 2 * 60 * 1000; // 2 minutes in milliseconds
+  ipTTL = 2 * 7 * 24 * 60 * 60; // 2 weeks in seconds
   challenges = new Set();
-
-  USED_IPS = "used_ips";
   FOLDS = "folds";
 
   async checkChallenge(challenge: string) {
@@ -32,13 +30,22 @@ export class DB {
     setTimeout(() => this.challenges.delete(challenge), this.challengeTTL);
   }
 
+  async storeIP(ip: string) {
+    return await kv.set(`ip:${ip}`, 1, { ex: this.ipTTL });
+  }
   async checkIP(ip: string) {
-    const isUsed = await kv.sismember(this.USED_IPS, ip);
-    return isUsed;
+    return await kv.exists(`ip:${ip}`);
+  }
+  async storeFold(fold: number) {
+    return await kv.hincrby("folds", fold.toString(), 1);
+  }
+  async getAllFolds() {
+    const folds: Record<string, number> = await kv.hgetall("folds");
+    return folds;
   }
 
-  async getFolds() {
-    const foldData: Record<string, number> = await kv.hgetall(this.FOLDS);
+  async getFoldArray() {
+    const foldData = await this.getAllFolds();
 
     if (!foldData) {
       return [];
@@ -51,11 +58,13 @@ export class DB {
         folds.push(Number(key));
       }
     }
+
     return folds;
   }
+
   async getFoldSample() {
     const SAMPLE_SIZE = 1000;
-    const folds = await this.getFolds();
+    const folds = await this.getFoldArray();
     const uniqFolds = new Set<number>();
 
     if (folds.length < SAMPLE_SIZE) {
@@ -71,23 +80,9 @@ export class DB {
   }
 
   async addFold(fold: number, ip: string) {
-    await kv.hincrby(this.FOLDS, fold.toString(), 1);
-    await kv.sadd(this.USED_IPS, ip);
+    await Promise.all([this.storeFold(fold), this.storeIP(ip)]);
   }
 }
-
-export const verifyToken = async (token: string) => {
-  try {
-    const { challenge, exp } = jwt.verify(token, SECRET) as FoldJWT;
-    return { challenge, expired: Date.now() > exp * 1000 };
-  } catch (err) {
-    return { err, expired: true };
-  }
-};
-
-export const createToken = (challenge: string) => {
-  return jwt.sign({ challenge }, SECRET, { expiresIn: "2m" });
-};
 
 export const verifyFold = (fold: number) => {
   if (typeof fold !== "number") {
@@ -98,9 +93,62 @@ export const verifyFold = (fold: number) => {
   return !fold || fold > tallestScreen || fold < 1;
 };
 
-export const verifyWork = (challenge: string, workToken: string) => {
-  return work.check(challenge, STRENGTH, workToken);
+export const verifyToken = async (token: string) => {
+  try {
+    const { challenge, exp } = jwt.verify(token, SECRET) as FoldJWT;
+    return { challenge, expired: Date.now() > exp * 1000 };
+  } catch (err) {
+    return { err, expired: true };
+  }
 };
-export const createWork = (challenge: string) => {
-  return work.generate(challenge, STRENGTH);
+export const createToken = (challenge: string) => {
+  return jwt.sign({ challenge }, SECRET, { expiresIn: "2m" });
 };
+
+async function sha256(message: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return hashHex;
+}
+async function findProof(
+  challenge: string,
+  difficulty: number
+): Promise<string | null> {
+  let proof = 0;
+  const target = "0".repeat(difficulty);
+
+  const timeoutPromise = new Promise<null>((resolve) =>
+    setTimeout(() => resolve(null), 10000)
+  );
+
+  const proofPromise = (async () => {
+    while (true) {
+      const hash = await sha256(challenge + proof);
+      if (hash.startsWith(target)) {
+        return proof.toString();
+      }
+      proof++;
+    }
+  })();
+
+  return Promise.race([proofPromise, timeoutPromise]);
+}
+
+async function verifyProofOfWork(
+  challenge: string,
+  proof: string,
+  difficulty: number
+): Promise<boolean> {
+  const hash = await sha256(challenge + proof);
+  return hash.startsWith("0".repeat(difficulty));
+}
+
+export const verifyWork = async (challenge: string, proof: string) =>
+  verifyProofOfWork(challenge, proof, STRENGTH);
+export const solveWork = async (challenge: string) =>
+  findProof(challenge, STRENGTH);

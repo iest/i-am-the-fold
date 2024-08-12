@@ -1,26 +1,30 @@
-import { DB, verifyFold, verifyToken, verifyWork } from "../../util";
+import {
+  createToken,
+  DB,
+  verifyFold,
+  verifyToken,
+  verifyWork,
+} from "../../util";
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 
 const db = new DB();
 
+export async function GET() {
+  const challenge = crypto.randomBytes(50).toString("base64");
+  const token = createToken(challenge);
+  return NextResponse.json({ token, challenge });
+}
+
 export async function POST(req: NextRequest) {
-  const { fold, token, workToken } = await req.json();
+  const { fold, token, proof } = await req.json();
   const forwarded = req.headers.get("x-forwarded-for");
   const ip = forwarded ? forwarded.split(",")[0] : req.ip;
 
-  if (!fold || !token || !workToken) {
+  if (!fold || !token || !proof) {
     return NextResponse.json(
       { message: "Missing parameters" },
       { status: 400 }
-    );
-  }
-
-  // Make sure this IP hasn't already submitted a fold
-  if (await db.checkIP(ip)) {
-    console.log("Fold already saved", { ip });
-    return NextResponse.json(
-      { message: "Fold already saved" },
-      { status: 403 }
     );
   }
 
@@ -41,9 +45,18 @@ export async function POST(req: NextRequest) {
   }
 
   // Verify that the proof-of-work checks out
-  if (!verifyWork(challenge, workToken)) {
+  if (!(await verifyWork(challenge, proof))) {
     console.log("Challenge failed", { challenge });
     return NextResponse.json({ message: "Challenge failed" }, { status: 403 });
+  }
+
+  // Make sure this IP hasn't already submitted a fold
+  if (await db.checkIP(ip)) {
+    console.log("Fold already saved", { ip });
+    return NextResponse.json(
+      { message: "Fold already saved" },
+      { status: 403 }
+    );
   }
 
   // Cool! We have valid proof-of-work
