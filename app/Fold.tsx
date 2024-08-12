@@ -20,20 +20,16 @@ const useWorker = (callback: (result: string) => void) => {
   return workerRef;
 };
 
-export const Fold = ({
-  token,
-  challenge,
-}: {
-  token: string;
-  challenge: string;
-}) => {
+export const Fold = () => {
   const [fold, setFold] = useState<number>();
   const [proof, setProof] = useState<string>();
   const worker = useWorker((result) => setProof(result));
+  const [challenge, setChallenge] = useState<string>();
+  const [token, setToken] = useState<string>();
 
   const saveFold = async () => {
     try {
-      const res = await fetch("/api", {
+      await fetch("/api", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -52,16 +48,23 @@ export const Fold = ({
   useEffect(() => {
     const height = window.innerHeight;
     setFold(height);
+
+    fetch("/api")
+      .then((res) => res.json())
+      .then((data) => {
+        setChallenge(data.challenge);
+        setToken(data.token);
+      });
   }, []);
 
   useEffect(() => {
-    if (!fold) return;
+    if (!fold || !challenge) return;
     if (worker.current) {
       worker.current.postMessage(challenge);
     } else {
       solveWork(challenge).then((result) => setProof(result));
     }
-  }, [fold]);
+  }, [fold, challenge]);
 
   useEffect(() => {
     if (!proof) return;

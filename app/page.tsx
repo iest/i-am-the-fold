@@ -1,7 +1,6 @@
 import React from "react";
-import crypto from "crypto";
 
-import { createToken, DB } from "../util";
+import { DB } from "../util";
 import { Fold } from "./Fold";
 
 const db = new DB();
@@ -9,8 +8,6 @@ const db = new DB();
 export default async function Page() {
   const folds = await db.getFoldSample();
   const max = Math.max(...folds);
-  const challenge = crypto.randomBytes(50).toString("base64");
-  const token = createToken(challenge);
 
   return (
     <>
@@ -50,7 +47,7 @@ export default async function Page() {
             </span>
           </li>
         ))}
-        <Fold token={token} challenge={challenge} />
+        <Fold />
       </ul>
 
       <footer className="gap-2 text-left text-sm p-4 max-w-4xl flex flex-col mx-auto">

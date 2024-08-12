@@ -118,17 +118,25 @@ async function sha256(message: string): Promise<string> {
 async function findProof(
   challenge: string,
   difficulty: number
-): Promise<string> {
+): Promise<string | null> {
   let proof = 0;
   const target = "0".repeat(difficulty);
 
-  while (true) {
-    const hash = await sha256(challenge + proof);
-    if (hash.startsWith(target)) {
-      return proof.toString();
+  const timeoutPromise = new Promise<null>((resolve) =>
+    setTimeout(() => resolve(null), 10000)
+  );
+
+  const proofPromise = (async () => {
+    while (true) {
+      const hash = await sha256(challenge + proof);
+      if (hash.startsWith(target)) {
+        return proof.toString();
+      }
+      proof++;
     }
-    proof++;
-  }
+  })();
+
+  return Promise.race([proofPromise, timeoutPromise]);
 }
 
 async function verifyProofOfWork(
@@ -140,13 +148,7 @@ async function verifyProofOfWork(
   return hash.startsWith("0".repeat(difficulty));
 }
 
-export const verifyWork = async (challenge: string, proof: string) => {
-  const done = verifyProofOfWork(challenge, proof, STRENGTH);
-  return done;
-};
-export const solveWork = async (challenge: string) => {
-  console.time("solveWork");
-  const done = await findProof(challenge, STRENGTH);
-  console.timeEnd("solveWork");
-  return done;
-};
+export const verifyWork = async (challenge: string, proof: string) =>
+  verifyProofOfWork(challenge, proof, STRENGTH);
+export const solveWork = async (challenge: string) =>
+  findProof(challenge, STRENGTH);

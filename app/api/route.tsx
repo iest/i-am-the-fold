@@ -1,7 +1,20 @@
-import { DB, verifyFold, verifyToken, verifyWork } from "../../util";
+import {
+  createToken,
+  DB,
+  verifyFold,
+  verifyToken,
+  verifyWork,
+} from "../../util";
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 
 const db = new DB();
+
+export async function GET() {
+  const challenge = crypto.randomBytes(50).toString("base64");
+  const token = createToken(challenge);
+  return NextResponse.json({ token, challenge });
+}
 
 export async function POST(req: NextRequest) {
   const { fold, token, proof } = await req.json();
