@@ -7,6 +7,9 @@ app = 'i-am-the-fold'
 primary_region = 'lhr'
 
 [build]
+  [build.args]
+    NEXT_PUBLIC_POSTHOG_KEY = "phc_x8IOq3sl7lty4xiL1Wbm7SqaH0bvAlZ5ZE48TT3muF7"
+    NEXT_PUBLIC_POSTHOG_HOST = "https://eu.i.posthog.com"
 
 [http_service]
   internal_port = 3000

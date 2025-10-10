@@ -16,6 +16,14 @@ ENV NODE_ENV="production"
 # Throw-away build stage to reduce size of final image
 FROM base AS build
 
+# Build arguments for Next.js public variables
+ARG NEXT_PUBLIC_POSTHOG_KEY
+ARG NEXT_PUBLIC_POSTHOG_HOST
+
+# Set them as environment variables for the build
+ENV NEXT_PUBLIC_POSTHOG_KEY=$NEXT_PUBLIC_POSTHOG_KEY
+ENV NEXT_PUBLIC_POSTHOG_HOST=$NEXT_PUBLIC_POSTHOG_HOST
+
 # Install packages needed to build node modules
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3
@@ -28,7 +36,7 @@ RUN npm ci --include=dev
 COPY . .
 
 # Build application
-RUN npx next build --experimental-build-mode compile
+RUN npx next build
 
 # Remove development dependencies
 RUN npm prune --omit=dev
