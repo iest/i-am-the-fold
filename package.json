@@ -9,7 +9,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start -H 0.0.0.0",
-    "lint": "next lint"
+    "lint": "next lint",
+    "redis:export": "tsx scripts/export-redis.ts",
+    "redis:import": "tsx scripts/import-redis.ts"
   },
   "dependencies": {
     "@upstash/redis": "^1.35.5",
@@ -31,6 +33,8 @@
     "eslint-config-next": "14.2.5",
     "postcss": "^8.4.40",
     "tailwindcss": "^3.4.7",
-    "typescript": "^5"
+    "tsx": "^4.7.1",
+    "typescript": "^5",
+    "ioredis": "^5.3.2"
   }
 }
