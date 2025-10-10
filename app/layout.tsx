@@ -1,9 +1,8 @@
-import { Analytics } from "@vercel/analytics/react";
-import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Fira_Mono } from "next/font/google";
 import StyledJsxRegistry from "./registry";
 import type { Metadata } from "next";
 import "./globals.css";
+import { PostHogProvider } from "./providers/PostHogProvider";
 
 const fira = Fira_Mono({
   weight: ["400", "700"],
@@ -24,9 +23,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={fira.className}>
       <body className="bg-white dark:bg-dark text-dark dark:text-white">
-        <StyledJsxRegistry>{children}</StyledJsxRegistry>
-        <SpeedInsights />
-        <Analytics />
+        <PostHogProvider>
+          <StyledJsxRegistry>{children}</StyledJsxRegistry>
+        </PostHogProvider>
       </body>
     </html>
   );
