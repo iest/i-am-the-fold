@@ -1,5 +1,7 @@
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { kv } from "@vercel/kv";
+import { Redis } from "@upstash/redis";
+
+const redis = Redis.fromEnv();
 
 export const STRENGTH = 4;
 const SECRET = process.env.SECRET;
@@ -31,16 +33,16 @@ export class DB {
   }
 
   async storeIP(ip: string) {
-    return await kv.set(`ip:${ip}`, 1, { ex: this.ipTTL });
+    return await redis.set(`ip:${ip}`, 1, { ex: this.ipTTL });
   }
   async checkIP(ip: string) {
-    return await kv.exists(`ip:${ip}`);
+    return await redis.exists(`ip:${ip}`);
   }
   async storeFold(fold: number) {
-    return await kv.hincrby("folds", fold.toString(), 1);
+    return await redis.hincrby("folds", fold.toString(), 1);
   }
   async getAllFolds() {
-    const folds: Record<string, number> = await kv.hgetall("folds");
+    const folds: Record<string, number> = await redis.hgetall("folds");
     return folds;
   }
 
@@ -117,13 +119,13 @@ async function sha256(message: string): Promise<string> {
 }
 async function findProof(
   challenge: string,
-  difficulty: number
+  difficulty: number,
 ): Promise<string | null> {
   let proof = 0;
   const target = "0".repeat(difficulty);
 
   const timeoutPromise = new Promise<null>((resolve) =>
-    setTimeout(() => resolve(null), 10000)
+    setTimeout(() => resolve(null), 10000),
   );
 
   const proofPromise = (async () => {
@@ -142,7 +144,7 @@ async function findProof(
 async function verifyProofOfWork(
   challenge: string,
   proof: string,
-  difficulty: number
+  difficulty: number,
 ): Promise<boolean> {
   const hash = await sha256(challenge + proof);
   return hash.startsWith("0".repeat(difficulty));
