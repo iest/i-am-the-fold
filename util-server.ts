@@ -1,9 +1,10 @@
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { Redis } from "@upstash/redis";
+import { STRENGTH, verifyFold, verifyWork } from "./util-client";
+
+export { STRENGTH, verifyFold, verifyWork };
 
 const redis = Redis.fromEnv();
-
-export const STRENGTH = 4;
 const SECRET = process.env.SECRET;
 
 export type ResponseData = {
@@ -86,15 +87,6 @@ export class DB {
   }
 }
 
-export const verifyFold = (fold: number) => {
-  if (typeof fold !== "number") {
-    return false;
-  }
-  const tallestScreen = 7680; // 8k screen
-
-  return !fold || fold > tallestScreen || fold < 1;
-};
-
 export const verifyToken = async (token: string) => {
   try {
     const { challenge, exp } = jwt.verify(token, SECRET) as FoldJWT;
@@ -103,54 +95,7 @@ export const verifyToken = async (token: string) => {
     return { err, expired: true };
   }
 };
+
 export const createToken = (challenge: string) => {
   return jwt.sign({ challenge }, SECRET, { expiresIn: "2m" });
 };
-
-async function sha256(message: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(message);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
-  return hashHex;
-}
-async function findProof(
-  challenge: string,
-  difficulty: number,
-): Promise<string | null> {
-  let proof = 0;
-  const target = "0".repeat(difficulty);
-
-  const timeoutPromise = new Promise<null>((resolve) =>
-    setTimeout(() => resolve(null), 10000),
-  );
-
-  const proofPromise = (async () => {
-    while (true) {
-      const hash = await sha256(challenge + proof);
-      if (hash.startsWith(target)) {
-        return proof.toString();
-      }
-      proof++;
-    }
-  })();
-
-  return Promise.race([proofPromise, timeoutPromise]);
-}
-
-async function verifyProofOfWork(
-  challenge: string,
-  proof: string,
-  difficulty: number,
-): Promise<boolean> {
-  const hash = await sha256(challenge + proof);
-  return hash.startsWith("0".repeat(difficulty));
-}
-
-export const verifyWork = async (challenge: string, proof: string) =>
-  verifyProofOfWork(challenge, proof, STRENGTH);
-export const solveWork = async (challenge: string) =>
-  findProof(challenge, STRENGTH);

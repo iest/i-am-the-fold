@@ -4,7 +4,7 @@ import {
   verifyFold,
   verifyToken,
   verifyWork,
-} from "../../util";
+} from "../../util-server";
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 

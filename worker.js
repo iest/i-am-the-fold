@@ -1,4 +1,4 @@
-import { solveWork } from "./util";
+import { solveWork } from "./util-client";
 
 addEventListener("message", async (event) => {
   const proof = await solveWork(event.data);

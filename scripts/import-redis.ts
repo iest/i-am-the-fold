@@ -170,8 +170,9 @@ async function importRedisData() {
       ipCount = allIpKeys.length;
     } catch (err) {
       // Fallback to scan if KEYS fails
-      cursor = "0";
-      scanCount = 0;
+      let cursor = "0";
+      let scanCount = 0;
+      const maxScans = 1000;
 
       do {
         try {

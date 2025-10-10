@@ -1,6 +1,6 @@
 import React from "react";
 
-import { DB } from "../util";
+import { DB } from "../util-server";
 import { Fold } from "./Fold";
 
 const db = new DB();

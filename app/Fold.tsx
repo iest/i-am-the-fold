@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { solveWork } from "../util";
+import { solveWork } from "../util-client";
 
 const useWorker = (callback: (result: string) => void) => {
   const workerRef = useRef<Worker>();
