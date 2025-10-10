@@ -18,8 +18,9 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const { fold, token, proof } = await req.json();
+  const flyClientIp = req.headers.get("fly-client-ip");
   const forwarded = req.headers.get("x-forwarded-for");
-  const ip = forwarded ? forwarded.split(",")[0] : req.ip;
+  const ip = flyClientIp || (forwarded ? forwarded.split(",")[0].trim() : req.ip) || "unknown";
 
   if (!fold || !token || !proof) {
     return NextResponse.json(
