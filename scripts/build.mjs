@@ -2,6 +2,7 @@ import { build as bundle } from "esbuild";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve, relative } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createHash } from "node:crypto";
 import postcss from "postcss";
 import tailwind from "tailwindcss";
 import autoprefixer from "autoprefixer";
@@ -61,6 +62,10 @@ export async function build() {
   }
   if (Object.keys(assets).length !== 3)
     throw new Error("Missing browser build outputs");
+  const favicon = await readFile(resolve(root, "client/favicon.svg"));
+  const faviconHash = createHash("sha256").update(favicon).digest("hex").slice(0, 12);
+  assets.favicon = `/assets/favicon-${faviconHash}.svg`;
+  await writeFile(resolve(root, `dist/public${assets.favicon}`), favicon);
   await writeFile(
     resolve(root, "dist/assets.json"),
     JSON.stringify(assets, null, 2) + "\n",

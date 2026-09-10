@@ -17,6 +17,7 @@ const assets: Assets = {
   client: "/assets/client.js",
   worker: "/assets/worker.js",
   styles: "/assets/styles.css",
+  favicon: "/assets/favicon.svg",
 };
 function options() {
   return {

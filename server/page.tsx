@@ -2,6 +2,7 @@ export interface Assets {
   client: string;
   worker: string;
   styles: string;
+  favicon: string;
 }
 
 export function Page({ folds, assets, posthogKey }: { folds: number[]; assets: Assets; posthogKey?: string }) {
@@ -14,6 +15,7 @@ export function Page({ folds, assets, posthogKey }: { folds: number[]; assets: A
         <title>I am the fold</title>
         <meta name="description" content="An experiment to show how designing for The Fold can be treacherous" />
         <link rel="stylesheet" href={assets.styles} />
+        <link rel="icon" type="image/svg+xml" href={assets.favicon} />
         <script type="module" src={assets.client} data-fold-worker={assets.worker} data-posthog-key={posthogKey || undefined}></script>
       </head>
       <body class="bg-white dark:bg-dark text-dark dark:text-white">
