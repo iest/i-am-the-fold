@@ -17,8 +17,15 @@ files change. Open http://localhost:3000.
 
 Set these variables in `.env.local` locally or Fly secrets in production:
 
-- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`: Upstash REST credentials.
+- `REDIS_URL`: native Redis connection, preferred when set. This is the connection
+  used by the existing Fly-managed database. Public endpoints require `rediss://`
+  (TLS). Fly's `redis://fly-*.upstash.io` endpoints are permitted inside Fly only
+  after resolving to its private `fdaa:` network; connections use that checked
+  address over Fly's encrypted private network. Local `redis://` is allowed in development.
+- `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN`: alternative Upstash REST credentials.
   Remote Redis endpoints require HTTPS. Loopback HTTP is allowed only outside production.
+  Fly-managed Redis speaks the native Redis protocol, so its port 6379 cannot be
+  used as a REST endpoint. See [Fly's Redis guide](https://fly.io/docs/upstash/redis/).
 - `SECRET`: a random signing key. Generate at least 32 random bytes, for example
   with `openssl rand -hex 32`. Production rejects short and obvious placeholder keys.
   The same secret derives private visitor identifiers; rotating it invalidates current
@@ -77,6 +84,11 @@ Docker, and action updates. Keep `.node-version`, the package engine, and Docker
 Node version aligned when accepting runtime updates; review the pinned Fly CLI and
 Trivy scanner versions periodically too.
 
+Before replacing app machines, Fly runs `dist/server.mjs --check-config` using the
+production secrets. This validates configuration and performs a read-only Redis
+check; a failure stops the deployment before machine updates, including when the
+app was idle. The check does not alter the histogram or visitor locks.
+
 The production image uses a pinned Distroless Node 24.21.0 runtime as a non-root
 user, with production dependencies only and no shell or package manager. Build
 tools stay in separate stages.
@@ -108,8 +120,10 @@ advisories of any severity.
 
 ## Backups and restores
 
-These utilities read `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` from the
-process environment, not command-line arguments. They do not automatically load
+These utilities read `REDIS_URL`, or the alternative `UPSTASH_REDIS_REST_URL` and
+`UPSTASH_REDIS_REST_TOKEN`, from the process environment, not command-line arguments.
+Native Fly connections require access to Fly's private network; local maintenance
+can use a `fly redis proxy` tunnel and a loopback native URL. They do not automatically load
 `.env.local`. Use your shell or secret manager to supply credentials without pasting
 them into shell history.
 

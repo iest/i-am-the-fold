@@ -7,16 +7,20 @@ async function main() {
       "Usage: npm run redis:export -- /absolute/path/outside/project/backup.json (credentials in environment)",
     );
   const redis = backupRedis();
-  const folds = (await redis.hgetall("folds")) || {};
-  const backup = parseBackup({
-    version: "2.0.0",
-    timestamp: new Date().toISOString(),
-    data: { folds },
-  });
-  await writeBackup(destination, backup);
-  console.log(
-    `Exported ${Object.keys(backup.data.folds).length} fold heights. No IP records were exported.`,
-  );
+  try {
+    const folds = (await redis.hgetall("folds")) || {};
+    const backup = parseBackup({
+      version: "2.0.0",
+      timestamp: new Date().toISOString(),
+      data: { folds },
+    });
+    await writeBackup(destination, backup);
+    console.log(
+      `Exported ${Object.keys(backup.data.folds).length} fold heights. No IP records were exported.`,
+    );
+  } finally {
+    redis.close?.();
+  }
 }
 main().catch((error) => {
   console.error(

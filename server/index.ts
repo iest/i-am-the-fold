@@ -8,11 +8,24 @@ import { validateConfig } from "./config";
 import { Server } from "node:http";
 
 const config = validateConfig(process.env);
+const db = new DB();
+if (process.argv.includes("--check-config")) {
+  try {
+    await db.getFoldSample();
+    console.log("Production configuration and Redis read check passed");
+  } catch {
+    console.error("Production Redis read check failed");
+    process.exitCode = 1;
+  } finally {
+    db.close();
+  }
+  process.exit(process.exitCode ?? 0);
+}
 const assets: Assets = JSON.parse(
   readFileSync(new URL("./assets.json", import.meta.url), "utf8"),
 );
 const app = createApp({
-  db: new DB(),
+  db,
   assets,
   publicDirectory: fileURLToPath(new URL("./public", import.meta.url)),
   posthogKey: process.env.POSTHOG_KEY || process.env.NEXT_PUBLIC_POSTHOG_KEY,
@@ -35,6 +48,7 @@ server.setTimeout(15000, (socket) => socket.destroy());
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.once(signal, () => {
     server.close((error) => {
+      db.close();
       process.exit(error ? 1 : 0);
     });
     setTimeout(() => process.exit(1), 10000).unref();

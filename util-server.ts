@@ -1,8 +1,8 @@
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { Redis } from "@upstash/redis";
 import { STRENGTH, isValidFold, verifyWork } from "./util-client";
 import { createHmac } from "node:crypto";
 import { normalizeIP } from "./server/network";
+import { createFoldStore, type FoldStore } from "./server/store";
 
 export { STRENGTH, isValidFold, verifyWork };
 
@@ -24,7 +24,6 @@ export function visitorKey(ip: string) {
   );
 }
 
-type FoldStore = Pick<Redis, "hgetall" | "eval">;
 type SaveResult = "saved" | "challenge_used" | "ip_used";
 
 // Redis executes the checks and writes together, across all application instances.
@@ -57,12 +56,11 @@ export class DB {
   challengeTTL = 2 * 60; // At least the remaining JWT lifetime, in seconds
   ipTTL = 2 * 7 * 24 * 60 * 60; // 2 weeks in seconds
 
-  constructor(
-    private readonly redis: FoldStore = Redis.fromEnv({
-      signal: () => AbortSignal.timeout(5000),
-      retry: { retries: 0 },
-    }),
-  ) {}
+  constructor(private readonly redis: FoldStore = createFoldStore()) {}
+
+  close() {
+    this.redis.close?.();
+  }
 
   async getFoldSample() {
     const SAMPLE_SIZE = 1000;

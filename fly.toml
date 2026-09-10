@@ -6,6 +6,10 @@
 app = 'i-am-the-fold'
 primary_region = 'lhr'
 
+[deploy]
+  release_command = 'dist/server.mjs --check-config'
+  release_command_timeout = '30s'
+
 [env]
     POSTHOG_KEY = "phc_x8IOq3sl7lty4xiL1Wbm7SqaH0bvAlZ5ZE48TT3muF7"
 

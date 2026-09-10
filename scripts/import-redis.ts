@@ -7,7 +7,12 @@ async function main() {
       "Usage: npm run redis:import -- /path/backup.json --replace (credentials in environment)",
     );
   const backup = await readBackup(source);
-  await restoreBackup(backupRedis(), backup);
+  const redis = backupRedis();
+  try {
+    await restoreBackup(redis, backup);
+  } finally {
+    redis.close?.();
+  }
   console.log(
     `Restored ${Object.keys(backup.data.folds).length} fold heights. Existing visitor and challenge locks retain their expiry.`,
   );

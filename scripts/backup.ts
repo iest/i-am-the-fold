@@ -5,6 +5,7 @@ import { dirname, relative, resolve, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 import { validateRedisUrl } from "../server/config";
 import { isValidFold } from "../util-client";
+import { createNativeStore, type FoldStore } from "../server/store";
 
 export const MAX_BACKUP_BYTES = 1024 * 1024;
 export interface Backup {
@@ -50,7 +51,8 @@ export function parseBackup(value: unknown, now = Date.now()): Backup {
   };
 }
 
-export function backupRedis(env: NodeJS.ProcessEnv = process.env) {
+export function backupRedis(env: NodeJS.ProcessEnv = process.env): FoldStore {
+  if (env.REDIS_URL) return createNativeStore(env, 10000);
   const url = validateRedisUrl(
     env.UPSTASH_REDIS_REST_URL,
     env.NODE_ENV === "production",
