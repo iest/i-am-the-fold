@@ -19,20 +19,20 @@
     "@hono/node-server": "^2.1.1",
     "@upstash/redis": "^1.35.5",
     "hono": "^4.13.7",
-    "ioredis": "^5.11.1",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
     "posthog-js": "^1.275.0"
   },
   "devDependencies": {
     "@fontsource/fira-mono": "^5.3.0",
     "@types/jsonwebtoken": "^9.0.6",
-    "@types/node": "^24.13.4",
+    "@types/node": "^26.4.1",
     "autoprefixer": "^10.4.19",
     "esbuild": "^0.28.2",
     "postcss": "^8.4.40",
-    "tailwindcss": "^3.4.7",
+    "tailwindcss": "^4.3.3",
     "tsx": "^4.7.1",
-    "typescript": "^5"
+    "typescript": "^7"
   },
   "engines": {
     "node": ">=24.21.0 <25"
