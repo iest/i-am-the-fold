@@ -7,7 +7,7 @@ const db = new DB();
 
 export default async function Page() {
   const folds = await db.getFoldSample();
-  const max = Math.max(...folds);
+  const max = Math.max(0, ...folds);
 
   return (
     <>

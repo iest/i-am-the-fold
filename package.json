@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0",
     "lint": "next lint",
+    "test": "node --import tsx --test tests/*.test.ts",
     "redis:export": "tsx scripts/export-redis.ts",
     "redis:import": "tsx scripts/import-redis.ts"
   },

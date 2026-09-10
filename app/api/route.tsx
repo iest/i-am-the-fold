@@ -1,7 +1,7 @@
 import {
   createToken,
   DB,
-  verifyFold,
+  isValidFold,
   verifyToken,
   verifyWork,
 } from "../../util-server";
@@ -9,67 +9,125 @@ import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 
 const db = new DB();
+const MAX_BODY_BYTES = 4096;
+
+class PayloadTooLargeError extends Error {}
+
+function isSameOrigin(req: NextRequest) {
+  const origin = req.headers.get("origin");
+  const host = req.headers.get("host");
+  if (!origin || !host) return false;
+  if (
+    req.headers.has("sec-fetch-site") &&
+    req.headers.get("sec-fetch-site") !== "same-origin"
+  ) {
+    return false;
+  }
+
+  try {
+    // Next derives the protocol from Fly's forwarded HTTPS metadata. Use Host
+    // because req.nextUrl may contain Next's internal bind address (0.0.0.0).
+    return origin === new URL(`${req.nextUrl.protocol}//${host}`).origin;
+  } catch {
+    return false;
+  }
+}
+
+async function readBody(req: NextRequest): Promise<unknown> {
+  if (Number(req.headers.get("content-length")) > MAX_BODY_BYTES) {
+    throw new PayloadTooLargeError();
+  }
+  const reader = req.body?.getReader();
+  if (!reader) throw new Error("Missing body");
+  const decoder = new TextDecoder();
+  let size = 0;
+  let text = "";
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > MAX_BODY_BYTES) {
+        await reader.cancel();
+        throw new PayloadTooLargeError();
+      }
+      text += decoder.decode(value, { stream: true });
+    }
+    return JSON.parse(text + decoder.decode());
+  } finally {
+    reader.releaseLock();
+  }
+}
 
 export async function GET() {
   const challenge = crypto.randomBytes(50).toString("base64");
   const token = createToken(challenge);
-  return NextResponse.json({ token, challenge });
+  return NextResponse.json(
+    { token, challenge },
+    { headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 export async function POST(req: NextRequest) {
-  const { fold, token, proof } = await req.json();
-  const flyClientIp = req.headers.get("fly-client-ip");
-  const forwarded = req.headers.get("x-forwarded-for");
-  const ip = flyClientIp || (forwarded ? forwarded.split(",")[0].trim() : req.ip) || "unknown";
-
-  if (!fold || !token || !proof) {
-    return NextResponse.json(
-      { message: "Missing parameters" },
-      { status: 400 }
-    );
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ message: "Invalid origin" }, { status: 403 });
+  }
+  const contentType = req.headers
+    .get("content-type")?.split(";")[0].trim().toLowerCase();
+  if (contentType !== "application/json") {
+    return NextResponse.json({ message: "Expected application/json" }, { status: 415 });
   }
 
-  // Verify the challenge was created by this server and hasn't expired
+  let body: unknown;
+  try {
+    body = await readBody(req);
+  } catch (error) {
+    return NextResponse.json(
+      {
+        message: error instanceof PayloadTooLargeError ? "Request too large" : "Invalid JSON",
+      },
+      { status: error instanceof PayloadTooLargeError ? 413 : 400 },
+    );
+  }
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return NextResponse.json({ message: "Invalid submission" }, { status: 400 });
+  }
+  const { fold, token, proof } = body as Record<string, unknown>;
+  if (!isValidFold(fold)) {
+    return NextResponse.json({ message: "Invalid fold" }, { status: 400 });
+  }
+  if (
+    typeof token !== "string" || !token || token.length > 1024 ||
+    typeof proof !== "string" || !/^\d{1,16}$/.test(proof)
+  ) {
+    return NextResponse.json({ message: "Invalid token or proof" }, { status: 400 });
+  }
+
   const { expired, challenge, err } = await verifyToken(token);
   if (err || expired) {
-    console.log("Bad token", { err, expired });
     return NextResponse.json({ message: "Bad token" }, { status: 403 });
   }
-
-  // Verify the challenge hasn't already been used
-  if (await db.checkChallenge(challenge)) {
-    console.log("Challenge reuse rejected", { challenge });
-    return NextResponse.json(
-      { message: "Challenge reuse rejected" },
-      { status: 403 }
-    );
-  }
-
-  // Verify that the proof-of-work checks out
   if (!(await verifyWork(challenge, proof))) {
-    console.log("Challenge failed", { challenge });
     return NextResponse.json({ message: "Challenge failed" }, { status: 403 });
   }
 
-  // Make sure this IP hasn't already submitted a fold
-  if (await db.checkIP(ip)) {
-    console.log("Fold already saved", { ip });
-    return NextResponse.json(
-      { message: "Fold already saved" },
-      { status: 403 }
-    );
+  const flyClientIp = req.headers.get("fly-client-ip");
+  const forwarded = req.headers.get("x-forwarded-for");
+  const ip = flyClientIp ||
+    (forwarded ? forwarded.split(",")[0].trim() : req.ip) || "unknown";
+  try {
+    const result = await db.addFold(fold, ip, challenge);
+    if (result !== "saved") {
+      return NextResponse.json(
+        {
+          message: result === "challenge_used" ? "Challenge reuse rejected" : "Fold already saved",
+        },
+        { status: 403 },
+      );
+    }
+    return NextResponse.json({ message: "Fold saved" });
+  } catch (error) {
+    console.error("Error saving fold", error);
+    return NextResponse.json({ message: "Unable to save fold" }, { status: 503 });
   }
-
-  // Cool! We have valid proof-of-work
-  await db.useChallenge(challenge);
-
-  // Check the submitted fold is actually valid
-  if (verifyFold(fold)) {
-    console.log("Invalid fold", { fold });
-    return NextResponse.json({ message: "Invalid fold" }, { status: 400 });
-  }
-
-  // Cool! We have a valid fold and we're done here
-  db.addFold(fold, ip);
-  return NextResponse.json({ message: "Fold saved" });
 }

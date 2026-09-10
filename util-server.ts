@@ -1,11 +1,27 @@
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { Redis } from "@upstash/redis";
-import { STRENGTH, verifyFold, verifyWork } from "./util-client";
+import { STRENGTH, isValidFold, verifyWork } from "./util-client";
 
-export { STRENGTH, verifyFold, verifyWork };
+export { STRENGTH, isValidFold, verifyWork };
 
-const redis = Redis.fromEnv();
 const SECRET = process.env.SECRET;
+
+type FoldStore = Pick<Redis, "hgetall" | "eval">;
+type SaveResult = "saved" | "challenge_used" | "ip_used";
+
+// Redis executes the checks and writes together, across all application instances.
+const SAVE_FOLD = `
+  if redis.call("EXISTS", KEYS[1]) == 1 then
+    return "challenge_used"
+  end
+  if redis.call("EXISTS", KEYS[2]) == 1 then
+    return "ip_used"
+  end
+  redis.call("HINCRBY", KEYS[3], ARGV[1], 1)
+  redis.call("SET", KEYS[1], 1, "EX", ARGV[2])
+  redis.call("SET", KEYS[2], 1, "EX", ARGV[3])
+  return "saved"
+`;
 
 export type ResponseData = {
   folds: number[];
@@ -20,76 +36,63 @@ interface FoldJWT extends JwtPayload {
 }
 
 export class DB {
-  challengeTTL = 2 * 60 * 1000; // 2 minutes in milliseconds
+  challengeTTL = 2 * 60; // At least the remaining JWT lifetime, in seconds
   ipTTL = 2 * 7 * 24 * 60 * 60; // 2 weeks in seconds
-  challenges = new Set();
-  FOLDS = "folds";
 
-  async checkChallenge(challenge: string) {
-    return this.challenges.has(challenge);
-  }
-  async useChallenge(challenge: string) {
-    this.challenges.add(challenge);
-    setTimeout(() => this.challenges.delete(challenge), this.challengeTTL);
-  }
-
-  async storeIP(ip: string) {
-    return await redis.set(`ip:${ip}`, 1, { ex: this.ipTTL });
-  }
-  async checkIP(ip: string) {
-    return await redis.exists(`ip:${ip}`);
-  }
-  async storeFold(fold: number) {
-    return await redis.hincrby("folds", fold.toString(), 1);
-  }
-  async getAllFolds() {
-    const folds: Record<string, number> = await redis.hgetall("folds");
-    return folds;
-  }
-
-  async getFoldArray() {
-    const foldData = await this.getAllFolds();
-
-    if (!foldData) {
-      return [];
-    }
-
-    const folds: number[] = [];
-
-    for (const [key, value] of Object.entries(foldData)) {
-      for (let i = 0; i < value; i++) {
-        folds.push(Number(key));
-      }
-    }
-
-    return folds;
-  }
+  constructor(private readonly redis: FoldStore = Redis.fromEnv()) {}
 
   async getFoldSample() {
     const SAMPLE_SIZE = 1000;
-    const folds = await this.getFoldArray();
-    const uniqFolds = new Set<number>();
+    const stored = await this.redis.hgetall<Record<string, unknown>>("folds");
+    const entries = Object.entries(stored || {}).flatMap(([key, count]) => {
+      const fold = Number(key);
+      if (
+        !isValidFold(fold) || String(fold) !== key ||
+        typeof count !== "number" || !Number.isSafeInteger(count) || count < 1
+      ) {
+        return [];
+      }
+      return [{ fold, count }];
+    });
 
-    if (folds.length < SAMPLE_SIZE) {
-      return folds;
+    const total = entries.reduce((sum, { count }) => sum + count, 0);
+    if (total < SAMPLE_SIZE) {
+      return entries.flatMap(({ fold, count }) => Array<number>(count).fill(fold));
     }
 
-    while (uniqFolds.size < SAMPLE_SIZE) {
-      const randomIndex = Math.floor(Math.random() * folds.length);
-      uniqFolds.add(folds[randomIndex]);
-    }
-
-    return Array.from(uniqFolds);
+    // An exponential race preserves count-weighted sampling without replacement,
+    // while doing bounded work even with few distinct heights or huge counts.
+    return entries
+      .map(({ fold, count }) => ({
+        fold,
+        rank: -Math.log(1 - Math.random()) / count,
+      }))
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, SAMPLE_SIZE)
+      .map(({ fold }) => fold);
   }
 
-  async addFold(fold: number, ip: string) {
-    await Promise.all([this.storeFold(fold), this.storeIP(ip)]);
+  async addFold(fold: number, ip: string, challenge: string): Promise<SaveResult> {
+    if (!isValidFold(fold)) throw new Error("Invalid fold");
+    return this.redis.eval<string[], SaveResult>(
+      SAVE_FOLD,
+      [`challenge:${challenge}`, `ip:${ip}`, "folds"],
+      [String(fold), String(this.challengeTTL), String(this.ipTTL)],
+    );
   }
 }
 
 export const verifyToken = async (token: string) => {
   try {
-    const { challenge, exp } = jwt.verify(token, SECRET) as FoldJWT;
+    const { challenge, exp } = jwt.verify(token, SECRET, {
+      algorithms: ["HS256"],
+    }) as FoldJWT;
+    if (
+      typeof challenge !== "string" || !challenge || challenge.length > 128 ||
+      !Number.isFinite(exp)
+    ) {
+      throw new Error("Invalid token payload");
+    }
     return { challenge, expired: Date.now() > exp * 1000 };
   } catch (err) {
     return { err, expired: true };

@@ -50,11 +50,8 @@ export const verifyWork = async (challenge: string, proof: string) =>
 export const solveWork = async (challenge: string) =>
   findProof(challenge, STRENGTH);
 
-export const verifyFold = (fold: number) => {
-  if (typeof fold !== "number") {
-    return false;
-  }
-  const tallestScreen = 7680;
-
-  return !fold || fold > tallestScreen || fold < 1;
-};
+export const isValidFold = (fold: unknown): fold is number =>
+  typeof fold === "number" &&
+  Number.isInteger(fold) &&
+  fold >= 1 &&
+  fold <= 7680;
