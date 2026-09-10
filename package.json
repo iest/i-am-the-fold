@@ -25,7 +25,7 @@
   "devDependencies": {
     "@fontsource/fira-mono": "^5.3.0",
     "@types/jsonwebtoken": "^9.0.6",
-    "@types/node": "^20",
+    "@types/node": "^24.13.4",
     "autoprefixer": "^10.4.19",
     "esbuild": "^0.28.2",
     "ioredis": "^5.3.2",
@@ -35,6 +35,6 @@
     "typescript": "^5"
   },
   "engines": {
-    "node": ">=22.17.0"
+    "node": ">=24.21.0 <25"
   }
 }

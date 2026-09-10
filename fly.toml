@@ -17,6 +17,18 @@ primary_region = 'lhr'
   min_machines_running = 0
   processes = ['app']
 
+  [http_service.concurrency]
+    type = 'requests'
+    soft_limit = 50
+    hard_limit = 100
+
+  [[http_service.checks]]
+    interval = '30s'
+    timeout = '3s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
+
 [[vm]]
   memory = '1gb'
   cpu_kind = 'shared'

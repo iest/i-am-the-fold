@@ -1,25 +1,56 @@
-# See https://fly.io/docs/app-guides/continuous-deployment-with-github-actions/
-
-name: Fly Deploy
+name: Checks and Fly deploy
 on:
   push:
-    branches:
-      - main
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    - cron: "23 8 * * 1"
+
+permissions:
+  contents: read
+
 jobs:
-  deploy:
-    name: Deploy app
+  checks:
     runs-on: ubuntu-latest
-    concurrency: deploy-group    # optional: ensure only one action runs at a time
+    timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          node-version: 22
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .node-version
           cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y redis-server
       - run: npm ci
       - run: npm run lint
       - run: npm test
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+        env:
+          REQUIRE_REDIS_TESTS: "1"
+      - run: npm audit --audit-level=low
+      - run: docker build -t i-am-the-fold:check .
+      - name: Scan the runtime image for fixable vulnerabilities
+        run: |
+          docker save i-am-the-fold:check -o "$RUNNER_TEMP/fold-image.tar"
+          docker run --rm -v "$RUNNER_TEMP/fold-image.tar:/image.tar:ro" \
+            aquasec/trivy:0.74.0@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969 \
+            image --input /image.tar --scanners vuln --ignore-unfixed \
+            --severity UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL --exit-code 1
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    concurrency: deploy-production
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1
+        with:
+          version: "0.4.101"
       - run: flyctl deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}

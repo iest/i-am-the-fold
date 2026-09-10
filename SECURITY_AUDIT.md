@@ -1,4 +1,99 @@
-# Security audit — 10 September 2026
+# Security audit and remediation — 10 September 2026
+
+## Current remediation status
+
+All eight repository findings below have been addressed in the working tree. The
+additional configuration, timeout, backup/restore, and deployment-workflow fixes
+are also implemented. These changes have **not been deployed** to Fly; this report
+does not certify the public site's current runtime.
+
+| ID | Resolution | Implementation |
+| --- | --- | --- |
+| F1 | Framing is blocked by CSP and `X-Frame-Options: DENY`; framed clients also skip collection and analytics. | [server/app.tsx](/Users/iest/github/i-am-the-fold/server/app.tsx), [client/index.ts](/Users/iest/github/i-am-the-fold/client/index.ts) |
+| F2 | Removed the analytics relay. The browser uses PostHog's EU endpoint directly; `/ingest/*` returns 404. | [client/analytics.ts](/Users/iest/github/i-am-the-fold/client/analytics.ts), [server/app.tsx](/Users/iest/github/i-am-the-fold/server/app.tsx) |
+| F3 | Bounded source/global request budgets and concurrency limits run before API work. A bounded replay cache claims valid tokens before Redis; Redis still provides shared atomic deduplication. | [server/limits.ts](/Users/iest/github/i-am-the-fold/server/limits.ts), [server/api.ts](/Users/iest/github/i-am-the-fold/server/api.ts) |
+| F4 | Updated to Node 24.21.0, pinned image digests, and a non-root Distroless runtime without a shell or package manager. Added image scanning and update proposals. See the upstream advisory limits below. | [Dockerfile](/Users/iest/github/i-am-the-fold/Dockerfile), [.node-version](/Users/iest/github/i-am-the-fold/.node-version) |
+| F5 | Removed the raw-IP backups from the three unpublished branch commits. Future exports contain only validated histogram data and require private files outside the repository. New visitor locks use keyed HMAC identifiers. | [scripts/backup.ts](/Users/iest/github/i-am-the-fold/scripts/backup.ts), [util-server.ts](/Users/iest/github/i-am-the-fold/util-server.ts) |
+| F6 | Initial render failures respect a five-second backoff and return 503 with `Retry-After`; cached pages remain available during later failures. | [server/cache.ts](/Users/iest/github/i-am-the-fold/server/cache.ts) |
+| F7 | Updated the full dependency tree. Production and development npm dependencies now have zero reported vulnerabilities. Disabled unnecessary input source-map loading in the CSS build. | [package-lock.json](/Users/iest/github/i-am-the-fold/package-lock.json), [scripts/build.mjs](/Users/iest/github/i-am-the-fold/scripts/build.mjs) |
+| F8 | Pinned action SHAs and deployment-tool versions, restricted workflow permissions to `contents: read`, and disabled checkout credential persistence. Checks run separately from the runner receiving the Fly token. | [.github/workflows/fly-deploy.yml](/Users/iest/github/i-am-the-fold/.github/workflows/fly-deploy.yml), [.github/dependabot.yml](/Users/iest/github/i-am-the-fold/.github/dependabot.yml) |
+
+Additional hardening includes a three-second/4KB JSON body budget, five-second
+Redis deadlines without retries, HTTP connection/time limits, Fly concurrency and
+health checks, production signing-key/HTTPS validation, and canonical IP handling
+with IPv6 /64 request budgets. Foreign browser requests are rejected before they
+can consume a visitor's request allowance. Browser headers include a tested CSP,
+MIME-sniffing protection, a referrer policy, and host-scoped production HSTS.
+
+Backup credentials now come from the environment. Restores validate the complete
+bounded input before touching Redis, require `--replace`, and atomically replace
+only the histogram. Existing visitor/challenge locks retain their expiry. Legacy
+IP locks are checked during normal submissions until they expire, but are neither
+renewed nor exported. Operational details are in [README.md](/Users/iest/github/i-am-the-fold/README.md).
+
+The deployment trigger now matches `master`. Pull requests and weekly scheduled
+runs perform checks without deploying. CI rejects any fixable image advisory,
+regardless of severity, and any npm advisory. Proof-of-work remains at four leading
+hexadecimal zeroes: the reproduced replay and framing issues are now addressed
+without multiplying legitimate visitors' CPU cost by 16.
+
+### Verification after remediation
+
+- TypeScript checks and the production build pass. All **33 tests pass with no
+  skips**, both locally and in the Node 24.21.0 build container, including real Redis
+  concurrency, legacy-lock migration, and atomic restore checks.
+- Regression tests cover sequential/concurrent proof replay, bounded request/cache
+  state, foreign-request quota protection, concurrency-slot release, malformed and
+  slow body streams, production configuration, and private backup handling.
+- Local Chromium blocked the original foreign iframe with no challenge request or
+  fold write. Normal desktop (720px) and mobile (844px) visits saved successfully;
+  the worker, dynamic fold positioning, and updated `@iest` link still work. Analytics
+  traffic was intercepted locally rather than sent to PostHog.
+- The final Linux/arm64 runtime starts as UID 65532 on Node 24.21.0 with a read-only
+  filesystem and external networking disabled. Health/challenge routes respond,
+  invalid heights are rejected, the removed relay returns 404, and security headers
+  are present. There is no shell or npm in that image.
+- Full `npm audit` reports **zero vulnerabilities**. Trivy 0.74.0 reports **zero
+  high/critical findings, zero fixable findings, and zero Node-package findings**
+  in the pinned minimal runtime's OS/dependency layers.
+- `flyctl config validate` passes. The intended published branch history contains
+  neither backup file. Only unpublished commits were rewritten; no push or remote
+  history change occurred. Old unreachable local objects/reflogs remain available
+  for recovery, so this was not a secure erase of local storage.
+
+Evidence is retained in ignored [output/security-fixes](/Users/iest/github/i-am-the-fold/output/security-fixes),
+including `container-tests.log`, `runtime-smoke.json`, `browser-results.json`,
+`npm-audit.json`, and `scan/trivy-final.json`. The history rewrite mapping is in
+[output/security-audit/history-rewrite.json](/Users/iest/github/i-am-the-fold/output/security-audit/history-rewrite.json).
+
+### Remaining limits and operational follow-through
+
+The image scanner still lists **20 upstream system-library advisories: 13 medium
+and 7 low**, affecting `libc6` and `zlib1g`. None has a vendor fixed version in the
+scanner data. They are not suppressed; they remain visible in scan output. No
+application exploit was demonstrated, but this is not a claim that these packages
+are vulnerability-free. Automated update proposals and weekly scans will surface
+available patches. The local image scan covers arm64; CI builds and scans its
+runner's target image separately.
+
+The public Fly deployment, production signing-key strength, Redis account access,
+GitHub protections/token scope, and PostHog account settings remain unverified.
+Use an app-scoped Fly token and deploy the reviewed branch through the checked
+workflow before assuming these protections are live. Production now fails startup
+on a weak placeholder key or insecure Redis URL. Rotating the signing key also
+changes visitor identifiers and resets their deduplication namespace.
+
+Anonymous clients can still submit fabricated heights within the valid range.
+Rotating networks can evade per-source budgets; budgets are local to each process
+and aggregate capacity scales with machines. Redis enforces shared write rules,
+but neither proof-of-work nor HTTP headers prove a physical viewport. Public
+PostHog project keys likewise cannot authenticate analytics events.
+
+## Original audit — before remediation
+
+The remainder preserves the original findings and evidence. Its descriptions of
+missing controls, old package versions, and recommended fixes refer to the
+pre-remediation code, not the current working tree.
 
 Audited commit: `20c4538ed3d5a9c8727abada9e3087a99364347b` on `sep-2026-updates`.
 

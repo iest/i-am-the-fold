@@ -1,6 +1,8 @@
 import { isValidFold, solveWork } from "../util-client";
 
-const settings = document.querySelector<HTMLScriptElement>("script[data-fold-worker]");
+const settings = document.querySelector<HTMLScriptElement>(
+  "script[data-fold-worker]",
+);
 const marker = document.getElementById("current-fold");
 const fold = window.innerHeight;
 
@@ -9,13 +11,16 @@ function solveInWorker(challenge: string): Promise<string | null> {
   if (!window.Worker || !workerUrl) return solveWork(challenge);
   return new Promise((resolve, reject) => {
     const worker = new Worker(workerUrl, { type: "module" });
-    const timeout = setTimeout(() => { worker.terminate(); resolve(null); }, 11000);
-    worker.onmessage = event => {
+    const timeout = setTimeout(() => {
+      worker.terminate();
+      resolve(null);
+    }, 11000);
+    worker.onmessage = (event) => {
       clearTimeout(timeout);
       worker.terminate();
       resolve(typeof event.data === "string" ? event.data : null);
     };
-    worker.onerror = error => {
+    worker.onerror = (error) => {
       clearTimeout(timeout);
       worker.terminate();
       reject(error);
@@ -39,18 +44,20 @@ async function saveFold() {
   if (!saved.ok && saved.status !== 403) throw new Error("Unable to save fold");
 }
 
-if (marker && isValidFold(fold)) {
+const topLevel = window.top === window.self;
+if (topLevel && marker && isValidFold(fold)) {
   marker.style.top = `${fold}px`;
   marker.querySelector("span")!.textContent = String(fold);
   marker.hidden = false;
-  void saveFold().catch(error => console.error("Error saving fold", error));
+  void saveFold().catch((error) => console.error("Error saving fold", error));
 }
 
 const posthogKey = settings?.dataset.posthogKey;
-if (posthogKey) {
+if (topLevel && posthogKey) {
   const startAnalytics = () => {
-    void import("./analytics").then(({ startAnalytics }) => startAnalytics(posthogKey))
-      .catch(error => console.error("Unable to start analytics", error));
+    void import("./analytics")
+      .then(({ startAnalytics }) => startAnalytics(posthogKey))
+      .catch((error) => console.error("Unable to start analytics", error));
   };
   if (document.readyState === "complete") startAnalytics();
   else window.addEventListener("load", startAnalytics, { once: true });

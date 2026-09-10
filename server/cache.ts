@@ -1,11 +1,17 @@
 const FIVE_MINUTES = 5 * 60 * 1000;
+export class PageUnavailable extends Error {
+  constructor(public retryAfter: number) {
+    super("Page temporarily unavailable");
+  }
+}
 
 // Share one render between concurrent requests, and keep serving the previous
 // page during refreshes. Challenges and submissions never pass through this cache.
 export function createPageCache(
   render: () => Promise<string>,
   now = Date.now,
-  onError: (error: unknown) => void = error => console.error("Page refresh failed", error),
+  onError: (error: unknown) => void = (error) =>
+    console.error("Page refresh failed", error),
 ) {
   let cached: string | undefined;
   let refreshAfter = 0;
@@ -13,20 +19,31 @@ export function createPageCache(
 
   function refresh() {
     if (!pending) {
-      pending = render().then(html => {
-        cached = html;
-        refreshAfter = now() + FIVE_MINUTES;
-        return html;
-      }).catch(error => {
-        refreshAfter = now() + 5000;
-        throw error;
-      }).finally(() => { pending = undefined; });
+      pending = render()
+        .then((html) => {
+          cached = html;
+          refreshAfter = now() + FIVE_MINUTES;
+          return html;
+        })
+        .catch((error) => {
+          refreshAfter = now() + 5000;
+          throw new PageUnavailable(5);
+        })
+        .finally(() => {
+          pending = undefined;
+        });
     }
     return pending;
   }
 
   return async () => {
-    if (cached === undefined) return refresh();
+    if (cached === undefined) {
+      if (!pending && now() < refreshAfter)
+        throw new PageUnavailable(
+          Math.max(1, Math.ceil((refreshAfter - now()) / 1000)),
+        );
+      return refresh();
+    }
     if (now() >= refreshAfter && !pending) void refresh().catch(onError);
     return cached;
   };

@@ -1,14 +1,27 @@
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { Redis } from "@upstash/redis";
 import { STRENGTH, isValidFold, verifyWork } from "./util-client";
+import { createHmac } from "node:crypto";
+import { normalizeIP } from "./server/network";
 
 export { STRENGTH, isValidFold, verifyWork };
 
-const SECRET = process.env.SECRET;
-
 function getSecret() {
+  const SECRET = process.env.SECRET;
   if (!SECRET) throw new Error("Set SECRET before using the submission API");
   return SECRET;
+}
+
+export function visitorKey(ip: string) {
+  const normalized = normalizeIP(ip);
+  if (!normalized) throw new Error("Invalid client IP");
+  return (
+    "visitor:" +
+    createHmac("sha256", getSecret())
+      .update("fold-ip:v1:")
+      .update(normalized)
+      .digest("hex")
+  );
 }
 
 type FoldStore = Pick<Redis, "hgetall" | "eval">;
@@ -19,7 +32,7 @@ const SAVE_FOLD = `
   if redis.call("EXISTS", KEYS[1]) == 1 then
     return "challenge_used"
   end
-  if redis.call("EXISTS", KEYS[2]) == 1 then
+  if redis.call("EXISTS", KEYS[2], KEYS[4]) > 0 then
     return "ip_used"
   end
   redis.call("HINCRBY", KEYS[3], ARGV[1], 1)
@@ -44,7 +57,12 @@ export class DB {
   challengeTTL = 2 * 60; // At least the remaining JWT lifetime, in seconds
   ipTTL = 2 * 7 * 24 * 60 * 60; // 2 weeks in seconds
 
-  constructor(private readonly redis: FoldStore = Redis.fromEnv()) {}
+  constructor(
+    private readonly redis: FoldStore = Redis.fromEnv({
+      signal: () => AbortSignal.timeout(5000),
+      retry: { retries: 0 },
+    }),
+  ) {}
 
   async getFoldSample() {
     const SAMPLE_SIZE = 1000;
@@ -52,8 +70,11 @@ export class DB {
     const entries = Object.entries(stored || {}).flatMap(([key, count]) => {
       const fold = Number(key);
       if (
-        !isValidFold(fold) || String(fold) !== key ||
-        typeof count !== "number" || !Number.isSafeInteger(count) || count < 1
+        !isValidFold(fold) ||
+        String(fold) !== key ||
+        typeof count !== "number" ||
+        !Number.isSafeInteger(count) ||
+        count < 1
       ) {
         return [];
       }
@@ -62,7 +83,9 @@ export class DB {
 
     const total = entries.reduce((sum, { count }) => sum + count, 0);
     if (total < SAMPLE_SIZE) {
-      return entries.flatMap(({ fold, count }) => Array<number>(count).fill(fold));
+      return entries.flatMap(({ fold, count }) =>
+        Array<number>(count).fill(fold),
+      );
     }
 
     // An exponential race preserves count-weighted sampling without replacement,
@@ -77,11 +100,16 @@ export class DB {
       .map(({ fold }) => fold);
   }
 
-  async addFold(fold: number, ip: string, challenge: string): Promise<SaveResult> {
+  async addFold(
+    fold: number,
+    ip: string,
+    challenge: string,
+  ): Promise<SaveResult> {
     if (!isValidFold(fold)) throw new Error("Invalid fold");
     return this.redis.eval<string[], SaveResult>(
       SAVE_FOLD,
-      [`challenge:${challenge}`, `ip:${ip}`, "folds"],
+      // Read legacy locks until they expire; only keyed hashes are written now.
+      [`challenge:${challenge}`, visitorKey(ip), "folds", `ip:${ip}`],
       [String(fold), String(this.challengeTTL), String(this.ipTTL)],
     );
   }
@@ -93,7 +121,9 @@ export const verifyToken = async (token: string) => {
       algorithms: ["HS256"],
     }) as FoldJWT;
     if (
-      typeof challenge !== "string" || !challenge || challenge.length > 128 ||
+      typeof challenge !== "string" ||
+      !challenge ||
+      challenge.length > 128 ||
       !Number.isFinite(exp)
     ) {
       throw new Error("Invalid token payload");
