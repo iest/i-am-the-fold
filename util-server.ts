@@ -6,6 +6,11 @@ export { STRENGTH, isValidFold, verifyWork };
 
 const SECRET = process.env.SECRET;
 
+function getSecret() {
+  if (!SECRET) throw new Error("Set SECRET before using the submission API");
+  return SECRET;
+}
+
 type FoldStore = Pick<Redis, "hgetall" | "eval">;
 type SaveResult = "saved" | "challenge_used" | "ip_used";
 
@@ -84,7 +89,7 @@ export class DB {
 
 export const verifyToken = async (token: string) => {
   try {
-    const { challenge, exp } = jwt.verify(token, SECRET, {
+    const { challenge, exp } = jwt.verify(token, getSecret(), {
       algorithms: ["HS256"],
     }) as FoldJWT;
     if (
@@ -100,5 +105,5 @@ export const verifyToken = async (token: string) => {
 };
 
 export const createToken = (challenge: string) => {
-  return jwt.sign({ challenge }, SECRET, { expiresIn: "2m" });
+  return jwt.sign({ challenge }, getSecret(), { expiresIn: "2m" });
 };

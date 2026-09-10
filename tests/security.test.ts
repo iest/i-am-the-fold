@@ -8,7 +8,6 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Redis } from "@upstash/redis";
 import IORedis from "ioredis";
-import { NextRequest } from "next/server";
 import jwt from "jsonwebtoken";
 import { isValidFold } from "../util-client";
 
@@ -19,8 +18,8 @@ const fakeStore = {
   eval: mock.fn(async () => "saved"),
 };
 let DB: typeof import("../util-server").DB;
-let POST: typeof import("../app/api/route").POST;
-let GET: typeof import("../app/api/route").GET;
+let POST: ReturnType<typeof import("../server/api").createApi>["POST"];
+let GET: ReturnType<typeof import("../server/api").createApi>["GET"];
 let createToken: typeof import("../util-server").createToken;
 let proof: string;
 
@@ -29,7 +28,8 @@ before(async () => {
   process.env.SECRET = secret;
   mock.method(Redis, "fromEnv", () => fakeStore);
   ({ DB, createToken } = await import("../util-server"));
-  ({ POST, GET } = await import("../app/api/route"));
+  const { createApi } = await import("../server/api");
+  ({ POST, GET } = createApi(new DB()));
   if (previousSecret === undefined) delete process.env.SECRET;
   else process.env.SECRET = previousSecret;
   for (let n = 0; ; n++) {
@@ -47,7 +47,7 @@ beforeEach(() => {
 after(() => mock.restoreAll());
 
 function request(body: unknown, headers: Record<string, string> = {}, url = "https://www.iamthefold.com/api") {
-  return new NextRequest(url, {
+  return new Request(url, {
     method: "POST",
     headers: {
       host: "www.iamthefold.com",
@@ -65,7 +65,7 @@ function submission(overrides: Record<string, unknown> = {}) {
 }
 function sampleDB(data: Record<string, unknown> | null) {
   return new DB({
-    hgetall: async <T extends Record<string, unknown>>() => data as T,
+    hgetall: (async () => data) as Redis["hgetall"],
     eval: async () => { throw new Error("Sampling must not write"); },
   });
 }
@@ -120,7 +120,7 @@ test("text/plain and missing content types are rejected; JSON charset is allowed
 
 test("malformed JSON and oversized bodies are rejected", async () => {
   const malformed = request({});
-  const bad = new NextRequest(malformed.url, { method: "POST", headers: malformed.headers, body: "{" });
+  const bad = new Request(malformed.url, { method: "POST", headers: malformed.headers, body: "{" });
   assert.equal((await POST(bad)).status, 400);
   assert.equal((await POST(request({ padding: "x".repeat(4096) }))).status, 413);
   assert.equal((await POST(request({}, { "content-length": "5000" }))).status, 413);
@@ -149,7 +149,7 @@ test("challenge responses are fresh and not cacheable", async () => {
 });
 
 test("save response waits for Redis; duplicates and failures are reported", async () => {
-  let release: (value: string) => void;
+  let release!: (value: string) => void;
   let entered: () => void;
   const started = new Promise<void>(resolve => { entered = resolve; });
   fakeStore.eval.mock.mockImplementation(() => {

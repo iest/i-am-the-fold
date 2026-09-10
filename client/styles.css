@@ -1,3 +1,6 @@
+@import "@fontsource/fira-mono/latin-400.css";
+@import "@fontsource/fira-mono/latin-700.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

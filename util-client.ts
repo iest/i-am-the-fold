@@ -18,21 +18,15 @@ async function findProof(
   let proof = 0;
   const target = "0".repeat(difficulty);
 
-  const timeoutPromise = new Promise<null>((resolve) =>
-    setTimeout(() => resolve(null), 10000),
-  );
-
-  const proofPromise = (async () => {
-    while (true) {
-      const hash = await sha256(challenge + proof);
-      if (hash.startsWith(target)) {
-        return proof.toString();
-      }
-      proof++;
+  const deadline = performance.now() + 10000;
+  while (performance.now() < deadline) {
+    const hash = await sha256(challenge + proof);
+    if (hash.startsWith(target)) {
+      return proof.toString();
     }
-  })();
-
-  return Promise.race([proofPromise, timeoutPromise]);
+    proof++;
+  }
+  return null;
 }
 
 async function verifyProofOfWork(
