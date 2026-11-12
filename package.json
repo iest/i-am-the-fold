@@ -16,7 +16,7 @@
     "redis:import": "tsx scripts/import-redis.ts"
   },
   "dependencies": {
-    "@hono/node-server": "^2.1.1",
+    "@hono/node-server": "^2.1.6",
     "@upstash/redis": "^1.35.5",
     "hono": "^4.13.7",
     "ioredis": "^5.11.1",
